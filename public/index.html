@@ -2,41 +2,32 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>SPYFALL</title>
 <link rel="stylesheet" href="/style.css">
-<style>
-  /* "made by chris" — top-right of title screen only */
-  #credit-tag {
-    position: absolute;
-    top: 18px;
-    right: 22px;
-    font-family: 'Cinzel', serif;
-    font-size: 0.7rem;
-    letter-spacing: 0.15em;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    pointer-events: none;
-    user-select: none;
-    opacity: 0.6;
-  }
-</style>
 </head>
 <body>
 
 <!-- ═══════════════════════════════════════════════════════════
+     SCREEN: COVER
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-cover" class="screen active cover-screen" onclick="UI.revealMenu()">
+  <div class="cover-bg-rays"></div>
+  <div class="cover-eye">👁</div>
+  <h1 class="cover-title">SPYFALL</h1>
+  <p class="cover-tap">— tap anywhere to begin —</p>
+  <span class="credit-tag">made by chris</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
      SCREEN: TITLE
 ═══════════════════════════════════════════════════════════ -->
-<div id="screen-title" class="screen active">
-
-  <!-- Credit tag — only visible on this screen (absolute inside relative screen) -->
-  <span id="credit-tag">made by chris</span>
-
+<div id="screen-title" class="screen">
   <h1>SPYFALL</h1>
-  <p class="subtitle">— trust no one —</p>
+  <p class="subtitle">Secret Intelligence Agency</p>
   <div class="divider"></div>
 
-  <div class="choice-pair">
+  <div class="choice-trio">
     <button class="choice-btn" onclick="UI.showPanel('create')">
       <span class="choice-icon">🗝</span>
       CREATE ROOM
@@ -45,55 +36,229 @@
       <span class="choice-icon">🚪</span>
       JOIN ROOM
     </button>
+    <button class="choice-btn" onclick="UI.showTutorial()">
+      <span class="choice-icon">📖</span>
+      TUTORIAL
+    </button>
   </div>
 
   <!-- Create panel -->
   <div id="panel-create" class="card" style="display:none; margin-top:22px;">
-    <label for="create-name">Your Name</label>
-    <input type="text" id="create-name" maxlength="20" placeholder="Enter username…"
-           onkeydown="if(event.key==='Enter') Net.createRoom()">
-    <button class="btn" onclick="Net.createRoom()">CREATE</button>
+    <label for="create-name">Your Name (Host)</label>
+    <input type="text" id="create-name" maxlength="20" placeholder="Enter codename…"
+           onkeydown="if(event.key==='Enter') document.getElementById('create-maxplayers').focus()">
+
+    <label for="create-maxplayers">
+      Max Players <span class="label-hint">(3 – 10)</span>
+    </label>
+    <div class="number-row">
+      <button class="num-btn" onclick="UI.adjustSetting('create-maxplayers', -1, 3, 10)">−</button>
+      <input type="number" id="create-maxplayers" min="3" max="10" value="6"
+             oninput="UI.onMaxPlayersChange()" onchange="UI.onMaxPlayersChange()">
+      <button class="num-btn" onclick="UI.adjustSetting('create-maxplayers', +1, 3, 10)">+</button>
+    </div>
+
+    <label for="create-spycount">
+      Number of Spies <span class="label-hint" id="spycount-hint">(max 1 for 6 players)</span>
+    </label>
+    <div class="number-row">
+      <button class="num-btn" onclick="UI.adjustSetting('create-spycount', -1, 1, 3)">−</button>
+      <input type="number" id="create-spycount" min="1" max="3" value="1">
+      <button class="num-btn" onclick="UI.adjustSetting('create-spycount', +1, 1, 3)">+</button>
+    </div>
+    <p class="spy-rule-hint" id="spy-rule-hint">1 spy for 3–5 players · 2 spies for 6–8 · 3 spies for 9–10</p>
+
+    <button class="btn" onclick="Net.createRoom()">Create Room</button>
     <p class="error-msg" id="create-error"></p>
   </div>
 
   <!-- Join panel -->
   <div id="panel-join" class="card" style="display:none; margin-top:22px;">
     <label for="join-name">Your Name</label>
-    <input type="text" id="join-name" maxlength="20" placeholder="Enter username…"
+    <input type="text" id="join-name" maxlength="20" placeholder="Enter codename…"
            onkeydown="if(event.key==='Enter') document.getElementById('join-code').focus()">
     <label for="join-code">Room Code</label>
     <input type="text" id="join-code" maxlength="4" placeholder="XXXX"
-           style="text-transform:uppercase;letter-spacing:0.3em;text-align:center;font-family:'Cinzel',serif;font-size:1.3rem;"
+           style="text-transform:uppercase;letter-spacing:0.35em;text-align:center;font-family:'Manrope',sans-serif;font-size:1.4rem;font-weight:800;"
            onkeydown="if(event.key==='Enter') Net.joinRoom()"
            oninput="this.value=this.value.toUpperCase()">
-    <button class="btn" onclick="Net.joinRoom()">JOIN</button>
+    <button class="btn" onclick="Net.joinRoom()">Join Room</button>
     <p class="error-msg" id="join-error"></p>
   </div>
+</div>
 
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: TUTORIAL
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-tutorial" class="screen tut-screen">
+  <div class="tut-container">
+    <button class="tut-close-btn" onclick="UI.closeTutorial()">✕ Close</button>
+
+    <h2 style="text-align:center;margin-bottom:4px;margin-top:8px;">How to Play</h2>
+    <p class="subtitle" style="margin-bottom:24px;">A quick guide to Spyfall</p>
+
+    <!-- Step 1 -->
+    <div class="tut-section">
+      <div class="tut-step-badge">1</div>
+      <h3 class="tut-heading">The Setup</h3>
+      <p class="tut-text">
+        The host creates a room and shares the 4-letter code. Everyone joins, the host starts the game.
+        One or more players are secretly assigned as <strong style="color:var(--red)">SPY</strong> —
+        the rest are <strong style="color:var(--cyan)">CIVILIANS</strong> who know the secret location.
+      </p>
+      <div class="tut-visual roles-visual">
+        <div class="tut-role-card spy-card">
+          <div style="font-size:2rem">🕵️</div>
+          <div class="tut-role-label spy-label">SPY</div>
+          <div class="tut-role-sub">No location given</div>
+        </div>
+        <div class="tut-vs">VS</div>
+        <div class="tut-role-card civ-card">
+          <div style="font-size:2rem">🏛️</div>
+          <div class="tut-role-label civ-label">CIVILIAN</div>
+          <div class="tut-role-sub">Knows the secret location</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="tut-section">
+      <div class="tut-step-badge">2</div>
+      <h3 class="tut-heading">The Discussion</h3>
+      <p class="tut-text">
+        Players take turns asking each other <strong>yes or no questions</strong>.
+        Civilians try to expose the spy; the spy tries to blend in and guess the location.
+      </p>
+      <div class="tut-chat-mockup">
+        <div class="tut-chat-header">Chat Log</div>
+        <div class="tut-chat-body">
+          <div class="tut-chat-msg">
+            <span class="tut-author asking-author">Alex → Jordan</span>
+            <span class="tut-question">Have you ever been to this place before?</span>
+            <span class="tut-answer yes-answer">Jordan: YES</span>
+          </div>
+          <div class="tut-chat-msg">
+            <span class="tut-author asking-author">Jordan → Sam</span>
+            <span class="tut-question">Is this place usually crowded?</span>
+            <span class="tut-answer no-answer">Sam: NO</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="tut-section">
+      <div class="tut-step-badge">3</div>
+      <h3 class="tut-heading">Selecting Who to Question</h3>
+      <p class="tut-text">
+        On your turn, click a player in the panel to select them. Your row glows
+        <span class="red-text">red</span> — the selected target glows <span class="gold-text">cyan</span>.
+      </p>
+      <div class="tut-player-panel">
+        <div class="tut-panel-header">Players</div>
+        <div class="tut-player-row current-turn-row">
+          <div class="tut-dot red-dot"></div>
+          <span>Alex <em class="you-label">(you — your turn)</em></span>
+          <span class="tut-badge red-badge">ASKING</span>
+        </div>
+        <div class="tut-player-row target-row">
+          <div class="tut-dot gold-dot"></div>
+          <span>Jordan</span>
+          <span class="tut-badge gold-badge">SELECTED</span>
+        </div>
+        <div class="tut-player-row">
+          <div class="tut-dot grey-dot"></div>
+          <span>Sam</span>
+        </div>
+        <div class="tut-player-row">
+          <div class="tut-dot grey-dot"></div>
+          <span>Chris</span>
+        </div>
+      </div>
+      <p class="tut-caption">
+        🔴 Red = player whose turn it is &nbsp;|&nbsp; 🔵 Cyan = player being questioned
+      </p>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="tut-section">
+      <div class="tut-step-badge">4</div>
+      <h3 class="tut-heading">Answering</h3>
+      <p class="tut-text">
+        When questioned, you see YES and NO buttons. That's it — no explanations allowed.
+      </p>
+      <div class="tut-answer-mockup">
+        <div class="tut-chat-msg">
+          <span class="tut-author asking-author">Alex → You</span>
+          <span class="tut-question">Have you ever been to this place before?</span>
+          <div class="tut-answer-btns">
+            <button class="tut-yes-btn">✔ YES</button>
+            <button class="tut-no-btn">✘ NO</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="tut-section">
+      <div class="tut-step-badge">5</div>
+      <h3 class="tut-heading">Voting</h3>
+      <p class="tut-text">
+        After 5 minutes (or when majority press <strong>⚡ VOTE NOW</strong>), everyone votes.
+        The player with the most votes is ejected.
+      </p>
+      <div class="tut-vote-row">
+        <div class="tut-vote-card"><div style="font-size:1.5rem">👁</div><div class="tut-vote-name">Alex</div></div>
+        <div class="tut-vote-card tut-vote-selected"><div style="font-size:1.5rem">👁</div><div class="tut-vote-name">Jordan</div><div class="tut-vote-check">✓</div></div>
+        <div class="tut-vote-card"><div style="font-size:1.5rem">👁</div><div class="tut-vote-name">Sam</div></div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="tut-section">
+      <div class="tut-step-badge">6</div>
+      <h3 class="tut-heading">Win Conditions</h3>
+      <div class="tut-outcomes">
+        <div class="tut-outcome-row">
+          <span class="outcome-icon">😇</span>
+          <div><strong style="color:var(--green)">Civilians Win</strong> — spy is ejected and fails to guess the location.</div>
+        </div>
+        <div class="tut-outcome-row">
+          <span class="outcome-icon">🕵️</span>
+          <div><strong style="color:var(--red)">Spy Wins</strong> — an innocent is ejected and the spy correctly guesses the location.</div>
+        </div>
+        <div class="tut-outcome-row">
+          <span class="outcome-icon">⚖️</span>
+          <div><strong style="color:var(--cyan)">Draw</strong> — the spy is caught but correctly guesses the location anyway.</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn gold" style="max-width:320px;margin:20px auto 0;display:block;" onclick="UI.closeTutorial()">
+      Got It — Let's Play
+    </button>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
      SCREEN: LOBBY
 ═══════════════════════════════════════════════════════════ -->
 <div id="screen-lobby" class="screen">
-  <h2>WAITING ROOM</h2>
-  <p class="subtitle">Share the code with your friends</p>
+  <h2>Waiting Room</h2>
+  <p class="subtitle">Share the code with your agents</p>
   <div class="divider"></div>
 
-  <div
-    class="room-code-display"
-    id="lobby-code"
-    title="Click to copy"
-    onclick="UI.copyCode()"
-  >----</div>
+  <div class="room-code-display" id="lobby-code" title="Click to copy" onclick="UI.copyCode()">----</div>
 
-  <div class="card" style="margin-top:8px;">
-    <label>Players (<span id="lobby-count">0</span> / 12)</label>
+  <div class="card" style="margin-top:28px;">
+    <label>Agents (<span id="lobby-count">0</span> / <span id="lobby-max">?</span>)</label>
     <ul class="player-list" id="lobby-player-list"></ul>
+
+    <div id="lobby-settings-display" class="lobby-settings-row" style="display:none; margin-top:14px;"></div>
 
     <div id="lobby-host-controls" style="display:none;">
       <button class="btn" id="lobby-start-btn" onclick="Net.startGame()" disabled>
-        START GAME
+        Start Game
       </button>
     </div>
 
@@ -105,7 +270,7 @@
   </div>
 
   <button class="btn secondary" style="max-width:320px;margin-top:14px;" onclick="Net.leaveRoom()">
-    ← LEAVE ROOM
+    ← Leave Room
   </button>
 </div>
 
@@ -113,8 +278,8 @@
      SCREEN: ROLE REVEAL
 ═══════════════════════════════════════════════════════════ -->
 <div id="screen-role" class="screen">
-  <h2 id="role-heading">YOUR ROLE</h2>
-  <p class="subtitle">Tap the card to reveal — make sure nobody is watching</p>
+  <h2 id="role-heading">Your Role</h2>
+  <p class="subtitle">Tap the card — make sure no one is watching</p>
   <div class="divider"></div>
 
   <div class="role-card" id="role-card" onclick="UI.flipCard()">
@@ -125,12 +290,12 @@
   </div>
 
   <button class="btn secondary" id="role-ready-btn"
-          style="max-width:280px;display:none;"
+          style="max-width:260px;display:none;"
           onclick="Net.acknowledgeRole()">
-    READY ✓
+    Ready ✓
   </button>
 
-  <div id="role-waiting-area" style="display:none;text-align:center;margin-top:12px;">
+  <div id="role-waiting-area" style="display:none;text-align:center;margin-top:16px;">
     <p class="subtitle">Waiting for everyone…</p>
     <div class="ready-progress" id="ready-pips"></div>
   </div>
@@ -140,46 +305,41 @@
      SCREEN: DISCUSSION
 ═══════════════════════════════════════════════════════════ -->
 <div id="screen-discussion" class="screen">
-
   <div class="discussion-header">
     <div class="timer" id="timer">5:00</div>
     <div class="turn-banner" id="turn-banner">Loading…</div>
     <button class="vote-trigger-btn" id="vote-trigger-btn" onclick="Net.requestVote()">
-      ⚡ VOTE NOW
+      ⚡ Vote Now
       <span class="vote-count-badge" id="vote-badge">0/0</span>
     </button>
   </div>
 
   <div class="discussion-layout">
     <div class="panel">
-      <div class="panel-header">Players</div>
+      <div class="panel-header">Agents</div>
       <div class="players-panel" id="players-panel"></div>
     </div>
-
     <div class="panel chat-panel">
-      <div class="panel-header">Chat Log</div>
+      <div class="panel-header">Interrogation Log</div>
       <div class="chat-log" id="chat-log"></div>
-
       <div class="chat-input-area">
         <input type="text" id="chat-input"
                placeholder="Type a yes/no question…"
                maxlength="120"
                onkeydown="if(event.key==='Enter') Net.sendQuestion()">
-        <button class="send-btn" id="send-btn" onclick="Net.sendQuestion()">ASK</button>
+        <button class="send-btn" id="send-btn" onclick="Net.sendQuestion()">Ask</button>
       </div>
     </div>
   </div>
-
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
      SCREEN: VOTING
 ═══════════════════════════════════════════════════════════ -->
 <div id="screen-voting" class="screen">
-  <h2>CAST YOUR VOTE</h2>
+  <h2>Cast Your Vote</h2>
   <p class="subtitle">Who is the spy among you?</p>
   <div class="divider"></div>
-
   <p class="info-box" id="voting-instruction">Waiting…</p>
   <div class="vote-grid" id="vote-grid"></div>
   <p class="error-msg" id="vote-error"></p>
@@ -189,15 +349,13 @@
      SCREEN: EJECTION
 ═══════════════════════════════════════════════════════════ -->
 <div id="screen-ejection" class="screen">
-  <h2>THE VERDICT</h2>
+  <h2>The Verdict</h2>
   <div class="divider"></div>
-
-  <div style="font-size:4rem;margin:16px 0;" id="ejection-icon"></div>
+  <div style="font-size:5rem;margin:20px 0;filter:drop-shadow(0 0 30px rgba(0,200,255,0.3));" id="ejection-icon"></div>
   <p id="ejection-text"
-     style="text-align:center;color:var(--text);font-size:1.1rem;max-width:420px;line-height:1.7;"></p>
-
-  <button class="btn" style="max-width:280px;margin-top:24px;" onclick="Net.proceedToGuess()">
-    CONTINUE
+     style="text-align:center;color:var(--text);font-size:1rem;max-width:420px;line-height:1.75;"></p>
+  <button class="btn" style="max-width:260px;margin-top:28px;" onclick="Net.proceedToGuess()">
+    Continue
   </button>
 </div>
 
@@ -205,10 +363,9 @@
      SCREEN: SPY GUESS
 ═══════════════════════════════════════════════════════════ -->
 <div id="screen-guess" class="screen">
-  <h2>SPY'S FINAL CHANCE</h2>
+  <h2>Spy's Final Chance</h2>
   <p class="subtitle" id="guess-spy-name"></p>
   <div class="divider"></div>
-
   <p class="info-box" id="guess-info">Where were the civilians? Choose wisely.</p>
   <div class="location-grid" id="location-grid"></div>
   <p class="info-box" id="guess-wait-msg" style="display:none;">
@@ -220,15 +377,13 @@
      SCREEN: RESULT
 ═══════════════════════════════════════════════════════════ -->
 <div id="screen-result" class="screen">
-  <h1 style="font-size:clamp(1.5rem,5vw,3rem);">GAME OVER</h1>
+  <h1 style="font-size:clamp(1.6rem,5vw,3rem);margin-bottom:4px;">Game Over</h1>
   <div class="divider"></div>
-
   <div class="result-badge" id="result-badge"></div>
   <p id="result-text"
-     style="text-align:center;max-width:420px;line-height:1.7;margin-top:12px;"></p>
-
-  <button class="btn gold" style="max-width:280px;margin-top:28px;" onclick="Net.playAgain()">
-    BACK TO LOBBY
+     style="text-align:center;max-width:420px;line-height:1.8;margin-top:16px;font-size:0.9rem;color:var(--text);"></p>
+  <button class="btn gold" style="max-width:260px;margin-top:32px;" onclick="Net.playAgain()">
+    Back to Lobby
   </button>
 </div>
 
