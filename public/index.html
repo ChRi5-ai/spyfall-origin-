@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPYFALL</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+  /* "made by chris" — top-right of title screen only */
+  #credit-tag {
+    position: absolute;
+    top: 18px;
+    right: 22px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0.6;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: TITLE
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-title" class="screen active">
+
+  <!-- Credit tag — only visible on this screen (absolute inside relative screen) -->
+  <span id="credit-tag">made by chris</span>
+
+  <h1>SPYFALL</h1>
+  <p class="subtitle">— trust no one —</p>
+  <div class="divider"></div>
+
+  <div class="choice-pair">
+    <button class="choice-btn" onclick="UI.showPanel('create')">
+      <span class="choice-icon">🗝</span>
+      CREATE ROOM
+    </button>
+    <button class="choice-btn" onclick="UI.showPanel('join')">
+      <span class="choice-icon">🚪</span>
+      JOIN ROOM
+    </button>
+  </div>
+
+  <!-- Create panel -->
+  <div id="panel-create" class="card" style="display:none; margin-top:22px;">
+    <label for="create-name">Your Name</label>
+    <input type="text" id="create-name" maxlength="20" placeholder="Enter username…"
+           onkeydown="if(event.key==='Enter') Net.createRoom()">
+    <button class="btn" onclick="Net.createRoom()">CREATE</button>
+    <p class="error-msg" id="create-error"></p>
+  </div>
+
+  <!-- Join panel -->
+  <div id="panel-join" class="card" style="display:none; margin-top:22px;">
+    <label for="join-name">Your Name</label>
+    <input type="text" id="join-name" maxlength="20" placeholder="Enter username…"
+           onkeydown="if(event.key==='Enter') document.getElementById('join-code').focus()">
+    <label for="join-code">Room Code</label>
+    <input type="text" id="join-code" maxlength="4" placeholder="XXXX"
+           style="text-transform:uppercase;letter-spacing:0.3em;text-align:center;font-family:'Cinzel',serif;font-size:1.3rem;"
+           onkeydown="if(event.key==='Enter') Net.joinRoom()"
+           oninput="this.value=this.value.toUpperCase()">
+    <button class="btn" onclick="Net.joinRoom()">JOIN</button>
+    <p class="error-msg" id="join-error"></p>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: LOBBY
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-lobby" class="screen">
+  <h2>WAITING ROOM</h2>
+  <p class="subtitle">Share the code with your friends</p>
+  <div class="divider"></div>
+
+  <div
+    class="room-code-display"
+    id="lobby-code"
+    title="Click to copy"
+    onclick="UI.copyCode()"
+  >----</div>
+
+  <div class="card" style="margin-top:8px;">
+    <label>Players (<span id="lobby-count">0</span> / 12)</label>
+    <ul class="player-list" id="lobby-player-list"></ul>
+
+    <div id="lobby-host-controls" style="display:none;">
+      <button class="btn" id="lobby-start-btn" onclick="Net.startGame()" disabled>
+        START GAME
+      </button>
+    </div>
+
+    <p class="info-box" id="lobby-wait-msg" style="display:none;">
+      Waiting for the host to start the game…
+    </p>
+
+    <p class="error-msg" id="lobby-error"></p>
+  </div>
+
+  <button class="btn secondary" style="max-width:320px;margin-top:14px;" onclick="Net.leaveRoom()">
+    ← LEAVE ROOM
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: ROLE REVEAL
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-role" class="screen">
+  <h2 id="role-heading">YOUR ROLE</h2>
+  <p class="subtitle">Tap the card to reveal — make sure nobody is watching</p>
+  <div class="divider"></div>
+
+  <div class="role-card" id="role-card" onclick="UI.flipCard()">
+    <div class="role-card-inner">
+      <div class="role-face front"></div>
+      <div class="role-face back" id="role-back"></div>
+    </div>
+  </div>
+
+  <button class="btn secondary" id="role-ready-btn"
+          style="max-width:280px;display:none;"
+          onclick="Net.acknowledgeRole()">
+    READY ✓
+  </button>
+
+  <div id="role-waiting-area" style="display:none;text-align:center;margin-top:12px;">
+    <p class="subtitle">Waiting for everyone…</p>
+    <div class="ready-progress" id="ready-pips"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: DISCUSSION
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-discussion" class="screen">
+
+  <div class="discussion-header">
+    <div class="timer" id="timer">5:00</div>
+    <div class="turn-banner" id="turn-banner">Loading…</div>
+    <button class="vote-trigger-btn" id="vote-trigger-btn" onclick="Net.requestVote()">
+      ⚡ VOTE NOW
+      <span class="vote-count-badge" id="vote-badge">0/0</span>
+    </button>
+  </div>
+
+  <div class="discussion-layout">
+    <div class="panel">
+      <div class="panel-header">Players</div>
+      <div class="players-panel" id="players-panel"></div>
+    </div>
+
+    <div class="panel chat-panel">
+      <div class="panel-header">Chat Log</div>
+      <div class="chat-log" id="chat-log"></div>
+
+      <div class="chat-input-area">
+        <input type="text" id="chat-input"
+               placeholder="Type a yes/no question…"
+               maxlength="120"
+               onkeydown="if(event.key==='Enter') Net.sendQuestion()">
+        <button class="send-btn" id="send-btn" onclick="Net.sendQuestion()">ASK</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: VOTING
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-voting" class="screen">
+  <h2>CAST YOUR VOTE</h2>
+  <p class="subtitle">Who is the spy among you?</p>
+  <div class="divider"></div>
+
+  <p class="info-box" id="voting-instruction">Waiting…</p>
+  <div class="vote-grid" id="vote-grid"></div>
+  <p class="error-msg" id="vote-error"></p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: EJECTION
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-ejection" class="screen">
+  <h2>THE VERDICT</h2>
+  <div class="divider"></div>
+
+  <div style="font-size:4rem;margin:16px 0;" id="ejection-icon"></div>
+  <p id="ejection-text"
+     style="text-align:center;color:var(--text);font-size:1.1rem;max-width:420px;line-height:1.7;"></p>
+
+  <button class="btn" style="max-width:280px;margin-top:24px;" onclick="Net.proceedToGuess()">
+    CONTINUE
+  </button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: SPY GUESS
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-guess" class="screen">
+  <h2>SPY'S FINAL CHANCE</h2>
+  <p class="subtitle" id="guess-spy-name"></p>
+  <div class="divider"></div>
+
+  <p class="info-box" id="guess-info">Where were the civilians? Choose wisely.</p>
+  <div class="location-grid" id="location-grid"></div>
+  <p class="info-box" id="guess-wait-msg" style="display:none;">
+    Waiting for the spy to make their guess…
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCREEN: RESULT
+═══════════════════════════════════════════════════════════ -->
+<div id="screen-result" class="screen">
+  <h1 style="font-size:clamp(1.5rem,5vw,3rem);">GAME OVER</h1>
+  <div class="divider"></div>
+
+  <div class="result-badge" id="result-badge"></div>
+  <p id="result-text"
+     style="text-align:center;max-width:420px;line-height:1.7;margin-top:12px;"></p>
+
+  <button class="btn gold" style="max-width:280px;margin-top:28px;" onclick="Net.playAgain()">
+    BACK TO LOBBY
+  </button>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/script.js"></script>
+</body>
+</html>
