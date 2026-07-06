@@ -73,6 +73,8 @@ function buildStateForPlayer(room, playerId) {
     myId: playerId,
      players: room.players.map(p => ({ id: p.id, name: p.name, connected: p.connected })),
     currentTurnId: room.currentTurnId,
+    votingOrder: room.votingOrder,
+votingIndex: room.votingIndex,
     targetId: room.targetId,
     awaitingAnswer: room.awaitingAnswer,
     voteRequestCount: room.voteRequests ? room.voteRequests.size : 0,

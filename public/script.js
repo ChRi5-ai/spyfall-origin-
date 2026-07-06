@@ -410,7 +410,11 @@ showScreen('discussion');
     const currentVoterId = state.votingOrder?.[state.votingIndex];
     const voter          = state.players.find(p => p.id === currentVoterId);
     const isMyTurn       = currentVoterId === state.myId;
-
+console.log("myId:", state.myId);
+console.log("currentVoterId:", currentVoterId);
+console.log("isMyTurn:", isMyTurn);
+console.log("votingOrder:", state.votingOrder);
+console.log("votingIndex:", state.votingIndex);
     document.getElementById('voting-instruction').textContent = isMyTurn
       ? 'Your turn — select the player you believe is the spy.'
       : `Waiting for ${voter?.name ?? '…'} to vote…`;
