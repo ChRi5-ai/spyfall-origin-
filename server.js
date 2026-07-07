@@ -75,6 +75,8 @@ function buildStateForPlayer(room, playerId) {
     currentTurnId: room.currentTurnId,
     votingOrder: room.votingOrder,
 votingIndex: room.votingIndex,
+spyId: room.spyId,
+currentGuessSpyId: room.currentGuessSpyId,
     targetId: room.targetId,
     awaitingAnswer: room.awaitingAnswer,
     voteRequestCount: room.voteRequests ? room.voteRequests.size : 0,
@@ -366,7 +368,8 @@ io.on('connection', (socket) => {
   });
 
   // --- SEND QUESTION ---
-  socket.on('sendQuestion', ({ text }) => {
+ socket.on('sendQuestion', ({ text }) => {
+    console.log("SERVER received question:", text);
     const room = getRoom(socket.data.roomCode);
     if (!room || room.phase !== 'discussion') return;
     if (socket.id !== room.currentTurnId) return;
@@ -450,6 +453,7 @@ io.on('connection', (socket) => {
     const room = getRoom(socket.data.roomCode);
     if (!room || room.phase !== 'ejection') return;
     room.phase = 'guess';
+    room.currentGuessSpyId = room.spyId;
     syncRoom(room.code);
   });
 
