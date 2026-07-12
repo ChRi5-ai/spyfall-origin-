@@ -17,8 +17,16 @@ const io = new Server(server, {
 
 const PORT = process.env.PORT || 3000;
 
-// Serve the frontend
+// ------------------------------------------------------------
+// STATIC FRONTENDS
+// The original Spyfall UI is untouched and keeps serving from
+// the site root. Spyfall 2D is a completely separate frontend
+// served from /2d, so the two can coexist without any risk of
+// one breaking the other. No routes, assets, or filenames were
+// changed inside /public.
+// ------------------------------------------------------------
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/2d', express.static(path.join(__dirname, 'public-2d')));
 
 // ------------------------------------------------------------
 // GAME DATA

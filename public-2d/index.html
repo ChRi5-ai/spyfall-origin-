@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spyfall 2D</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!--
+    Phase 1 scope: render a static placeholder map on a canvas.
+    No UI overlays (lobby/reveal/discussion/etc.) exist yet — those
+    arrive in a later phase per the roadmap, layered on top of this
+    canvas rather than replacing it.
+  -->
+  <div id="game-root">
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+  </div>
+
+  <script type="module" src="world.js"></script>
+  <script type="module" src="canvas.js"></script>
+</body>
+</html>
