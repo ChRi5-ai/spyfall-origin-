@@ -21,14 +21,30 @@
   </div>
 
   <!--
-    PHASE 4: room info overlay, shown once inside a party. No game
-    settings or ready button yet — just who's here and who's host.
+    Room info overlay, shown once inside a party. No game settings or
+    ready button yet — just who's here and who's host.
   -->
   <div id="room-info" class="panel hidden">
     <h2>Room <span id="room-code-display"></span></h2>
     <p id="host-indicator"></p>
     <p id="player-count"></p>
     <ul id="player-list"></ul>
+    <!--
+      Host-only. Visibility and enabled state are both driven entirely
+      by data the server sent in the 'lobby' snapshot (see lobby.js) —
+      never decided client-side. Not wired to an actual game start yet.
+    -->
+    <button id="start-game-btn" class="hidden" disabled>Start Game</button>
+    <p id="start-message" class="hidden error"></p>
+  </div>
+
+  <!--
+    Character selection grid — 10 fixed slots, always shown once in a
+    room. No Start Game control here; that's a separate, later step.
+  -->
+  <div id="character-panel" class="panel hidden">
+    <h2>Choose a Character</h2>
+    <div id="character-grid"></div>
   </div>
 
   <!--
@@ -51,6 +67,7 @@
     automatically.
   -->
   <script type="module" src="lobby.js"></script>
+  <script type="module" src="characters.js"></script>
   <script type="module" src="canvas.js"></script>
 </body>
 </html>

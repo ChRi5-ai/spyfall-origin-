@@ -123,3 +123,54 @@ body {
 .host-entry {
   color: #f4a261;
 }
+
+/* Character selection panel sits in the opposite corner from
+   room-info, so both are visible at once without overlapping. */
+#character-panel {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  min-width: 220px;
+  text-align: left;
+  padding: 14px 18px;
+}
+
+#character-panel h2 {
+  font-size: 1rem;
+  margin-bottom: 10px;
+}
+
+#character-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.character-slot {
+  aspect-ratio: 1 / 1;
+  font-family: inherit;
+  font-size: 1rem;
+  border-radius: 4px;
+  border: 2px solid #588157;
+  background: #3a5a40;
+  color: #f1faee;
+  cursor: pointer;
+}
+
+.character-slot.available:hover {
+  background: #6ea36c;
+}
+
+.character-slot.taken {
+  background: #223229;
+  border-color: #3a4a3f;
+  color: #6a7d70;
+  cursor: not-allowed;
+}
+
+.character-slot.selected-self {
+  background: #e63946;
+  border-color: #f1faee;
+  cursor: pointer;
+  color: #f1faee;
+}

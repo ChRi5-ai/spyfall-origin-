@@ -17,10 +17,17 @@
 // (socket.join(code)) is what makes `.to(code).emit(...)` only reach
 // that party's sockets — this is reused for scoping rather than
 // reinventing per-room broadcast plumbing.
+//
+// PHASE 5 CHANGE: added character selection, delegated entirely to
+// server/characters.js (kept as its own module, separate from both
+// room lifecycle and movement math). This file's job is just wiring:
+// receive 'selectCharacter', ask characters.js whether it's allowed,
+// and broadcast the result. No character logic lives here directly.
 // ------------------------------------------------------------
 
 const { createPlayerState, stepPlayer, sanitizeInput } = require('./movement');
 const roomsStore = require('./rooms');
+const charactersStore = require('./characters');
 
 const TICK_RATE_HZ = 30;
 const TICK_MS = 1000 / TICK_RATE_HZ;
@@ -52,16 +59,29 @@ function buildMovementSnapshot(room) {
 }
 
 // Wire-format snapshot of a room's lobby info: who's the host, who's
-// connected, how many. This is what the lobby UI renders — deliberately
-// a separate event from movement 'state' so lobby-list updates (which
-// are rare — join/leave) don't need to be recomputed on every single
-// 30Hz movement tick.
+// connected (with their current character selection, if any), how
+// many, the full character-availability grid, and whether every
+// connected player has selected a character yet. This is what the
+// lobby UI renders — deliberately a separate event from movement
+// 'state' so lobby-list updates (which are rare — join/leave/character
+// select) don't need to be recomputed on every single 30Hz movement
+// tick.
+//
+// `allSelected` reuses characters.js's existing allPlayersSelected
+// unchanged — this only wires its result into the broadcast snapshot
+// so the client can gate the host's Start Game control.
 function buildLobbySnapshot(room) {
   return {
     code: room.code,
     hostId: room.hostId,
-    players: Object.values(room.players).map((p) => ({ id: p.id, name: p.name })),
+    players: Object.values(room.players).map((p) => ({
+      id: p.id,
+      name: p.name,
+      characterId: charactersStore.getSelectionForPlayer(room, p.id),
+    })),
     count: Object.keys(room.players).length,
+    characters: charactersStore.buildCharacterAvailability(room),
+    allSelected: charactersStore.allPlayersSelected(room),
   };
 }
 
@@ -118,6 +138,29 @@ function attachMovementNetworking(io) {
       }
     });
 
+    // --- SELECT CHARACTER ---
+    // The server is the sole authority on who owns which character.
+    // If two clients race to pick the same one, Socket.io/Node process
+    // events one at a time on this single-threaded event loop, so
+    // whichever 'selectCharacter' event arrives first is simply the
+    // first one handled — there's no real concurrency to arbitrate.
+    // The loser gets an explicit error plus a fresh lobby snapshot so
+    // its UI can immediately resync instead of showing stale state.
+    socket.on('selectCharacter', ({ characterId } = {}, callback) => {
+      const room = roomsStore.findRoomBySocket(socket.id);
+      if (!room) {
+        return callback?.({ error: 'You are not in a room.' });
+      }
+
+      const result = charactersStore.selectCharacter(room, socket.id, characterId);
+      if (result.error) {
+        return callback?.({ error: result.error, lobby: buildLobbySnapshot(room) });
+      }
+
+      callback?.({ success: true });
+      movementNamespace.to(room.code).emit('lobby', buildLobbySnapshot(room));
+    });
+
     // --- RECEIVE MOVEMENT INPUT ---
     // Clients send which keys are currently held, NOT a position.
     // The server is the only thing that ever computes position.
@@ -138,6 +181,7 @@ function attachMovementNetworking(io) {
 
       const code = room.code;
       const stillExists = roomsStore.removePlayerFromRoom(code, socket.id);
+      charactersStore.releaseSelection(room, socket.id);
 
       if (stillExists) {
         // Room survives — could be a host transfer, could just be a

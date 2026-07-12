@@ -20,6 +20,7 @@ let selfId = null;
 
 const lobbyEntryEl = document.getElementById('lobby-entry');
 const roomInfoEl = document.getElementById('room-info');
+const characterPanelEl = document.getElementById('character-panel');
 const gameRootEl = document.getElementById('game-root');
 
 const createBtn = document.getElementById('create-room-btn');
@@ -31,6 +32,8 @@ const roomCodeDisplayEl = document.getElementById('room-code-display');
 const hostIndicatorEl = document.getElementById('host-indicator');
 const playerCountEl = document.getElementById('player-count');
 const playerListEl = document.getElementById('player-list');
+const startBtn = document.getElementById('start-game-btn');
+const startMessageEl = document.getElementById('start-message');
 
 function showError(message) {
   errorEl.textContent = message;
@@ -45,6 +48,7 @@ function clearError() {
 function enterRoomView() {
   lobbyEntryEl.classList.add('hidden');
   roomInfoEl.classList.remove('hidden');
+  characterPanelEl.classList.remove('hidden');
   gameRootEl.classList.remove('hidden');
 }
 
@@ -62,7 +66,15 @@ function renderLobby(lobby) {
   playerListEl.innerHTML = '';
   for (const player of lobby.players) {
     const li = document.createElement('li');
-    li.textContent = player.name;
+    // Character is shown as its fixed number, matching the label
+    // used on the character grid itself (see characters.js) — or
+    // "Not Selected" if this player hasn't picked one yet. Character
+    // *ownership* itself is still decided entirely server-side; this
+    // is read-only display of what the server already reported.
+    const characterLabel = player.characterId
+      ? `Character ${player.characterId.replace('char-', '')}`
+      : 'Not Selected';
+    li.textContent = `${player.name} — ${characterLabel}`;
     if (player.id === lobby.hostId) {
       li.textContent += ' (host)';
       li.classList.add('host-entry');
@@ -72,6 +84,30 @@ function renderLobby(lobby) {
     }
     playerListEl.appendChild(li);
   }
+
+  renderStartControl(lobby, isSelfHost);
+}
+
+// Start Game is visible only to the host, and its enabled/disabled
+// state is driven entirely by `lobby.allSelected`, which the server
+// computed (see server/movement-network.js -> characters.js). This
+// function never decides readiness itself — it only reflects what
+// the server already validated, and clicking it (once truly wired up
+// in a later phase) would still need the server to accept or reject
+// the actual start, the same way character selection already works.
+function renderStartControl(lobby, isSelfHost) {
+  if (!isSelfHost) {
+    startBtn.classList.add('hidden');
+    startMessageEl.classList.add('hidden');
+    return;
+  }
+
+  startBtn.classList.remove('hidden');
+  startMessageEl.classList.remove('hidden');
+  startBtn.disabled = !lobby.allSelected;
+  startMessageEl.textContent = lobby.allSelected
+    ? ''
+    : 'Start Game is disabled until every connected player has selected a character.';
 }
 
 socket.on('self', ({ id }) => {
