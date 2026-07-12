@@ -40,11 +40,22 @@ function clamp(value, min, max) {
 }
 
 // Creates a fresh server-side player record. Spawns centered on the map.
-function createPlayerState(name) {
+// `id` and `color` are opaque identity fields owned by the networking
+// layer (see server/movement-network.js) — movement.js doesn't care what
+// they are, it just carries them alongside position so callers don't
+// need to merge two separate objects back together every tick.
+function createPlayerState(id, name, color) {
+  // Small random spawn offset so simultaneous connections aren't stacked
+  // exactly on top of one another (purely cosmetic — same clamp bounds
+  // and movement rules apply to everyone regardless of spawn point).
+  const offsetX = (Math.random() - 0.5) * 80;
+  const offsetY = (Math.random() - 0.5) * 80;
   return {
+    id,
     name,
-    x: MAP_PIXEL_WIDTH / 2 - PLAYER_SIZE / 2,
-    y: MAP_PIXEL_HEIGHT / 2 - PLAYER_SIZE / 2,
+    color,
+    x: clamp(MAP_PIXEL_WIDTH / 2 - PLAYER_SIZE / 2 + offsetX, MIN_X, MAX_X),
+    y: clamp(MAP_PIXEL_HEIGHT / 2 - PLAYER_SIZE / 2 + offsetY, MIN_Y, MAX_Y),
     input: { up: false, down: false, left: false, right: false },
   };
 }

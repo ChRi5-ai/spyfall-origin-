@@ -3,13 +3,21 @@
 // ============================================================
 // The only module that talks to Socket.io on the client. Reads input
 // changes from input.js and sends them to the server; receives the
-// server's authoritative position back and exposes it for canvas.js
-// to render. Rendering code never touches the socket directly.
+// server's authoritative roster of all players back and exposes it
+// for canvas.js to render. Rendering code never touches the socket
+// directly, and never computes anyone's position — including its own.
 //
 // Connects on the '/2d' namespace, matching server/movement-network.js
 // — this keeps Spyfall 2D traffic completely separate from the
 // original game's default-namespace socket events.
-// ============================================================
+//
+// PHASE 3 CHANGE: `latestState` used to be a single player's position.
+// It's now an array of every connected player's { id, name, color, x, y },
+// broadcast by the server each tick. This module doesn't distinguish
+// "self" from "others" — it just exposes what the server sent — but it
+// does track this client's own socket id, since the server tells it
+// via a one-time 'self' event, for canvas.js (or later phases) to use.
+// ------------------------------------------------------------
 
 import { setOnChange } from './input.js';
 
@@ -17,16 +25,23 @@ import { setOnChange } from './input.js';
 // automatically by the socket.io server), so `io` is a global here.
 const socket = io('/2d');
 
-// Latest authoritative state received from the server. Starts null
-// until the first tick arrives after connecting.
-let latestState = null;
+let latestPlayers = []; // array of { id, name, color, x, y }
+let selfId = null;
 
-function getLatestState() {
-  return latestState;
+function getLatestPlayers() {
+  return latestPlayers;
 }
 
-socket.on('state', (state) => {
-  latestState = state;
+function getSelfId() {
+  return selfId;
+}
+
+socket.on('self', ({ id }) => {
+  selfId = id;
+});
+
+socket.on('state', (players) => {
+  latestPlayers = players;
 });
 
 // Send input to the server only when it changes, not every frame —
@@ -36,4 +51,4 @@ setOnChange((inputState) => {
   socket.emit('input', inputState);
 });
 
-export { getLatestState };
+export { getLatestPlayers, getSelfId };
