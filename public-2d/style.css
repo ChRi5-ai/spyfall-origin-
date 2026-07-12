@@ -232,3 +232,10 @@ body {
 #gameplay-panel {
   min-width: 280px;
 }
+
+.role-detail {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #f4a261;
+  margin: 4px 0 16px;
+}

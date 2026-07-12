@@ -30,6 +30,8 @@ const roomsStore = require('./rooms');
 const charactersStore = require('./characters');
 const settingsStore = require('./settings');
 const gameStartStore = require('./game-start');
+const gameSessionStore = require('./game-session');
+const gameTimerStore = require('./game-timer');
 
 const TICK_RATE_HZ = 30;
 const TICK_MS = 1000 / TICK_RATE_HZ;
@@ -209,6 +211,15 @@ function attachMovementNetworking(io) {
     // (distinct from 'lobby') so every client transitions out of the
     // lobby at the same moment, plus one final 'lobby' broadcast so
     // anyone still rendering lobby UI sees `started: true` immediately.
+    //
+    // PHASE 7 ADDITION: once game-start.js has locked the room, hand
+    // off to game-session.js to actually initialize the Spyfall match
+    // (pick a location, assign roles, start the discussion timer).
+    // Role reveals are emitted individually to each player's own
+    // socket id — never broadcast to the room — so nobody ever
+    // receives anyone else's role. The timer's start info IS broadcast
+    // to the whole room, since a start time and duration carry no
+    // secret information on their own.
     socket.on('startGame', (_payload, callback) => {
       const room = roomsStore.findRoomBySocket(socket.id);
       if (!room) {
@@ -226,6 +237,24 @@ function attachMovementNetworking(io) {
         timerMinutes: result.timerMinutes,
       });
       movementNamespace.to(room.code).emit('lobby', buildLobbySnapshot(room));
+
+      const { endsAt, durationMs } = gameSessionStore.initializeGame(
+        room,
+        { map: result.map, timerMinutes: result.timerMinutes },
+        (expiredRoom) => {
+          movementNamespace.to(expiredRoom.code).emit('timerEnd', {});
+        }
+      );
+
+      // Room-wide: safe to broadcast, carries no role/location secrets.
+      movementNamespace.to(room.code).emit('timerStart', { endsAt, durationMs });
+
+      // Per-socket: each player's own role only, never the room.
+      for (const socketId of Object.keys(room.players)) {
+        movementNamespace
+          .to(socketId)
+          .emit('roleReveal', gameSessionStore.getRoleRevealForPlayer(room, socketId));
+      }
     });
 
     // --- RECEIVE MOVEMENT INPUT ---
@@ -249,6 +278,14 @@ function attachMovementNetworking(io) {
       const code = room.code;
       const stillExists = roomsStore.removePlayerFromRoom(code, socket.id);
       charactersStore.releaseSelection(room, socket.id);
+
+      if (!stillExists) {
+        // Room was just deleted for being empty — if a discussion
+        // timer was running, stop it rather than leaving an orphaned
+        // setTimeout that would otherwise fire against a room nobody
+        // is in anymore.
+        gameTimerStore.clearTimer(room);
+      }
 
       if (stillExists) {
         // Room survives — could be a host transfer, could just be a

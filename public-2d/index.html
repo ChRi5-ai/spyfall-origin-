@@ -62,14 +62,17 @@
   </div>
 
   <!--
-    PHASE 6: shown once the host successfully starts the game. This
-    is intentionally just a placeholder confirming the transition —
-    no gameplay, roles, or map rendering beyond naming the chosen map.
+    PHASE 6: shown once the host successfully starts the game.
+    PHASE 7: now also displays this client's own role (never anyone
+    else's — see role-reveal.js) and a live discussion countdown
+    (see timer.js, which takes over #gameplay-timer's text once the
+    timer starts).
   -->
   <div id="gameplay-panel" class="panel hidden">
-    <h2>Game Started</h2>
+    <h2 id="role-title"></h2>
+    <p id="role-detail" class="role-detail"></p>
     <p>Map: <span id="gameplay-map"></span></p>
-    <p>Discussion Timer: <span id="gameplay-timer"></span></p>
+    <p>Time Remaining: <span id="gameplay-timer"></span></p>
   </div>
 
   <!--
@@ -95,6 +98,8 @@
   <script type="module" src="characters.js"></script>
   <script type="module" src="settings.js"></script>
   <script type="module" src="game-start.js"></script>
+  <script type="module" src="role-reveal.js"></script>
+  <script type="module" src="timer.js"></script>
   <script type="module" src="canvas.js"></script>
 </body>
 </html>
