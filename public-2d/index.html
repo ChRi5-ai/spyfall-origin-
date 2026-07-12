@@ -8,12 +8,36 @@
 </head>
 <body>
   <!--
-    Phase 1 scope: render a static placeholder map on a canvas.
-    No UI overlays (lobby/reveal/discussion/etc.) exist yet — those
-    arrive in a later phase per the roadmap, layered on top of this
-    canvas rather than replacing it.
+    PHASE 4: entry screen shown before joining a party. Hidden once a
+    'lobby' event arrives from the server (see lobby.js).
   -->
-  <div id="game-root">
+  <div id="lobby-entry" class="panel">
+    <h1>Spyfall 2D</h1>
+    <button id="create-room-btn">Create Room</button>
+    <div class="divider">or</div>
+    <input id="join-code-input" maxlength="6" placeholder="ROOM CODE" autocomplete="off" />
+    <button id="join-room-btn">Join Room</button>
+    <p id="lobby-error" class="error"></p>
+  </div>
+
+  <!--
+    PHASE 4: room info overlay, shown once inside a party. No game
+    settings or ready button yet — just who's here and who's host.
+  -->
+  <div id="room-info" class="panel hidden">
+    <h2>Room <span id="room-code-display"></span></h2>
+    <p id="host-indicator"></p>
+    <p id="player-count"></p>
+    <ul id="player-list"></ul>
+  </div>
+
+  <!--
+    The movement canvas itself, hidden until a room is joined. Once
+    visible, world.js/canvas.js render exactly as they did in Phase 3
+    — the only change is that the player roster they receive is now
+    scoped to this client's room instead of one global shared world.
+  -->
+  <div id="game-root" class="hidden">
     <canvas id="game-canvas" width="800" height="600"></canvas>
   </div>
 
@@ -21,11 +45,12 @@
   <script src="/socket.io/socket.io.js"></script>
 
   <!--
-    Load order matters for the module graph: canvas.js imports from
-    network.js, which imports from input.js. Using type="module" means
-    the browser resolves those imports automatically, so only the
-    entry point (canvas.js) needs to be listed here.
+    lobby.js and canvas.js are two independent entry points sharing
+    one socket connection (socket.js) under the hood. Using
+    type="module" means the browser resolves each file's own imports
+    automatically.
   -->
+  <script type="module" src="lobby.js"></script>
   <script type="module" src="canvas.js"></script>
 </body>
 </html>
