@@ -15,7 +15,17 @@ const io = new Server(server, {
   cors: { origin: '*' } // allow connections from any origin (adjust if needed)
 });
 
+const { attachMovementNetworking } = require('./server/movement-network');
+
 const PORT = process.env.PORT || 3000;
+
+// ------------------------------------------------------------
+// SPYFALL 2D — MOVEMENT NETWORKING
+// Runs on its own Socket.io namespace ('/2d'), completely separate
+// from the original game's default-namespace socket handlers below.
+// See server/movement-network.js for details.
+// ------------------------------------------------------------
+attachMovementNetworking(io);
 
 // ------------------------------------------------------------
 // STATIC FRONTENDS

@@ -17,7 +17,15 @@
     <canvas id="game-canvas" width="800" height="600"></canvas>
   </div>
 
-  <script type="module" src="world.js"></script>
+  <!-- Socket.io client, served automatically by the socket.io server -->
+  <script src="/socket.io/socket.io.js"></script>
+
+  <!--
+    Load order matters for the module graph: canvas.js imports from
+    network.js, which imports from input.js. Using type="module" means
+    the browser resolves those imports automatically, so only the
+    entry point (canvas.js) needs to be listed here.
+  -->
   <script type="module" src="canvas.js"></script>
 </body>
 </html>
