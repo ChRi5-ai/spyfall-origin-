@@ -48,6 +48,31 @@
   </div>
 
   <!--
+    PHASE 6: host-configurable match settings. Read-only for
+    non-host players — buttons render disabled for them (see
+    settings.js), the server enforces the same restriction regardless.
+  -->
+  <div id="settings-panel" class="panel hidden">
+    <h2>Match Settings</h2>
+    <p class="settings-label">Map</p>
+    <div id="map-options" class="settings-options"></div>
+    <p class="settings-label">Discussion Timer</p>
+    <div id="timer-options" class="settings-options"></div>
+    <p id="settings-error" class="error"></p>
+  </div>
+
+  <!--
+    PHASE 6: shown once the host successfully starts the game. This
+    is intentionally just a placeholder confirming the transition —
+    no gameplay, roles, or map rendering beyond naming the chosen map.
+  -->
+  <div id="gameplay-panel" class="panel hidden">
+    <h2>Game Started</h2>
+    <p>Map: <span id="gameplay-map"></span></p>
+    <p>Discussion Timer: <span id="gameplay-timer"></span></p>
+  </div>
+
+  <!--
     The movement canvas itself, hidden until a room is joined. Once
     visible, world.js/canvas.js render exactly as they did in Phase 3
     — the only change is that the player roster they receive is now
@@ -68,6 +93,8 @@
   -->
   <script type="module" src="lobby.js"></script>
   <script type="module" src="characters.js"></script>
+  <script type="module" src="settings.js"></script>
+  <script type="module" src="game-start.js"></script>
   <script type="module" src="canvas.js"></script>
 </body>
 </html>

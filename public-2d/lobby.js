@@ -21,6 +21,7 @@ let selfId = null;
 const lobbyEntryEl = document.getElementById('lobby-entry');
 const roomInfoEl = document.getElementById('room-info');
 const characterPanelEl = document.getElementById('character-panel');
+const settingsPanelEl = document.getElementById('settings-panel');
 const gameRootEl = document.getElementById('game-root');
 
 const createBtn = document.getElementById('create-room-btn');
@@ -49,6 +50,7 @@ function enterRoomView() {
   lobbyEntryEl.classList.add('hidden');
   roomInfoEl.classList.remove('hidden');
   characterPanelEl.classList.remove('hidden');
+  settingsPanelEl.classList.remove('hidden');
   gameRootEl.classList.remove('hidden');
 }
 
@@ -116,6 +118,11 @@ socket.on('self', ({ id }) => {
 
 socket.on('lobby', (lobby) => {
   clearError();
+  // Once the game has started, game-start.js owns the view — this
+  // final 'lobby' broadcast (sent alongside 'gameStart' purely so
+  // `started: true` is reflected everywhere) should not re-reveal the
+  // lobby panels game-start.js just hid.
+  if (lobby.started) return;
   enterRoomView();
   renderLobby(lobby);
 });

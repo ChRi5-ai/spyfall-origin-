@@ -174,3 +174,61 @@ body {
   cursor: pointer;
   color: #f1faee;
 }
+
+/* Settings panel sits centered along the bottom, out of the way of
+   both corner panels. */
+#settings-panel {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 320px;
+  text-align: left;
+  padding: 14px 18px;
+}
+
+.settings-label {
+  margin: 10px 0 4px;
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+
+.settings-options {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.settings-option {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 6px 12px;
+  border-radius: 4px;
+  border: 2px solid #588157;
+  background: #3a5a40;
+  color: #f1faee;
+  cursor: pointer;
+}
+
+.settings-option:not(:disabled):hover {
+  background: #6ea36c;
+}
+
+.settings-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.settings-option.selected-option {
+  background: #f4a261;
+  border-color: #f1faee;
+  color: #1b2a23;
+  font-weight: bold;
+}
+
+/* Gameplay placeholder panel — shown once the host starts the game.
+   Centered, same as the entry screen, since it's the new "main" view
+   at this point in the flow. */
+#gameplay-panel {
+  min-width: 280px;
+}

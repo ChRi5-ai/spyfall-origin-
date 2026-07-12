@@ -28,6 +28,8 @@
 const { createPlayerState, stepPlayer, sanitizeInput } = require('./movement');
 const roomsStore = require('./rooms');
 const charactersStore = require('./characters');
+const settingsStore = require('./settings');
+const gameStartStore = require('./game-start');
 
 const TICK_RATE_HZ = 30;
 const TICK_MS = 1000 / TICK_RATE_HZ;
@@ -70,6 +72,11 @@ function buildMovementSnapshot(room) {
 // `allSelected` reuses characters.js's existing allPlayersSelected
 // unchanged — this only wires its result into the broadcast snapshot
 // so the client can gate the host's Start Game control.
+//
+// PHASE 6 ADDITION: `settings` (map + timer, from settings.js) and
+// `started` (from game-start.js) are wired in the same way — each
+// module owns its own rules, this function just assembles their
+// current values into one snapshot for the client to render.
 function buildLobbySnapshot(room) {
   return {
     code: room.code,
@@ -82,6 +89,8 @@ function buildLobbySnapshot(room) {
     count: Object.keys(room.players).length,
     characters: charactersStore.buildCharacterAvailability(room),
     allSelected: charactersStore.allPlayersSelected(room),
+    settings: settingsStore.getSettings(room),
+    started: gameStartStore.isLocked(room),
   };
 }
 
@@ -130,6 +139,9 @@ function attachMovementNetworking(io) {
         if (!room) {
           return callback?.({ error: 'Room not found. Check the code and try again.' });
         }
+        if (gameStartStore.isLocked(room)) {
+          return callback?.({ error: 'This room has already started and can no longer be joined.' });
+        }
         addSocketToRoom(socket, room);
         callback?.({ success: true, code: room.code });
       } catch (err) {
@@ -151,6 +163,9 @@ function attachMovementNetworking(io) {
       if (!room) {
         return callback?.({ error: 'You are not in a room.' });
       }
+      if (gameStartStore.isLocked(room)) {
+        return callback?.({ error: 'Character selection is locked — the game has started.' });
+      }
 
       const result = charactersStore.selectCharacter(room, socket.id, characterId);
       if (result.error) {
@@ -158,6 +173,58 @@ function attachMovementNetworking(io) {
       }
 
       callback?.({ success: true });
+      movementNamespace.to(room.code).emit('lobby', buildLobbySnapshot(room));
+    });
+
+    // --- UPDATE HOST SETTINGS ---
+    // Map and timer changes go through the same pattern as character
+    // selection: the client only ever requests a change, settings.js
+    // is the sole authority on whether it's from the host and whether
+    // the requested values are valid, and a successful change is
+    // rebroadcast to the whole room so everyone sees it live.
+    socket.on('updateSettings', (payload = {}, callback) => {
+      const room = roomsStore.findRoomBySocket(socket.id);
+      if (!room) {
+        return callback?.({ error: 'You are not in a room.' });
+      }
+      if (gameStartStore.isLocked(room)) {
+        return callback?.({ error: 'Settings are locked — the game has started.' });
+      }
+
+      const result = settingsStore.updateSettings(room, socket.id, payload);
+      if (result.error) {
+        return callback?.({ error: result.error, lobby: buildLobbySnapshot(room) });
+      }
+
+      callback?.({ success: true });
+      movementNamespace.to(room.code).emit('lobby', buildLobbySnapshot(room));
+    });
+
+    // --- START GAME ---
+    // Delegates entirely to game-start.js for validation (host-only,
+    // every player selected, valid map/timer) and locking. This
+    // handler's only job is translating that result into network
+    // events: a rejection stays private to the requester, but success
+    // is broadcast to the whole room as a dedicated 'gameStart' event
+    // (distinct from 'lobby') so every client transitions out of the
+    // lobby at the same moment, plus one final 'lobby' broadcast so
+    // anyone still rendering lobby UI sees `started: true` immediately.
+    socket.on('startGame', (_payload, callback) => {
+      const room = roomsStore.findRoomBySocket(socket.id);
+      if (!room) {
+        return callback?.({ error: 'You are not in a room.' });
+      }
+
+      const result = gameStartStore.attemptStartGame(room, socket.id);
+      if (result.error) {
+        return callback?.({ error: result.error });
+      }
+
+      callback?.({ success: true });
+      movementNamespace.to(room.code).emit('gameStart', {
+        map: result.map,
+        timerMinutes: result.timerMinutes,
+      });
       movementNamespace.to(room.code).emit('lobby', buildLobbySnapshot(room));
     });
 
