@@ -32,6 +32,8 @@ const settingsStore = require('./settings');
 const gameStartStore = require('./game-start');
 const gameSessionStore = require('./game-session');
 const gameTimerStore = require('./game-timer');
+const proximityStore = require('./proximity');
+const conversationStore = require('./conversation');
 
 const TICK_RATE_HZ = 30;
 const TICK_MS = 1000 / TICK_RATE_HZ;
@@ -257,6 +259,105 @@ function attachMovementNetworking(io) {
       }
     });
 
+    // --- QUESTIONING: REQUEST CONVERSATION ---
+    // The server is the sole authority on whether a conversation may
+    // start: distance is checked here using each player's current,
+    // server-computed position (never anything the client claims),
+    // and every other rule (busy / can't-immediately-re-ask) is
+    // delegated to conversation.js. Kept as two separate checks
+    // (distance here, everything else in conversation.js) rather than
+    // one combined function, so proximity and conversation rules stay
+    // independently reviewable.
+    socket.on('requestConversation', ({ targetId } = {}, callback) => {
+      const room = roomsStore.findRoomBySocket(socket.id);
+      if (!room) return callback?.({ error: 'You are not in a room.' });
+
+      const asker = room.players[socket.id];
+      const target = room.players[targetId];
+      if (!asker || !target) {
+        return callback?.({ error: 'Player not found.' });
+      }
+      if (!proximityStore.isWithinInteractionRange(asker, target)) {
+        return callback?.({ error: 'You are too far away to question that player.' });
+      }
+
+      const ruleCheck = conversationStore.canStart(room, socket.id, targetId);
+      if (ruleCheck.error) {
+        return callback?.({ error: ruleCheck.error });
+      }
+
+      const convo = conversationStore.startConversation(room, socket.id, targetId);
+      callback?.({ success: true, conversationId: convo.id });
+
+      // Sent privately to each participant, with their own role in
+      // the exchange and the other person's name — never broadcast
+      // to the room, since a conversation is only for its two
+      // participants (see 'Other players continue playing normally'
+      // in the Phase 8 spec).
+      movementNamespace.to(convo.askerId).emit('conversationStarted', {
+        conversationId: convo.id,
+        role: 'asker',
+        otherName: target.name,
+      });
+      movementNamespace.to(convo.targetId).emit('conversationStarted', {
+        conversationId: convo.id,
+        role: 'target',
+        otherName: asker.name,
+      });
+    });
+
+    // --- QUESTIONING: SUBMIT QUESTION ---
+    socket.on('submitQuestion', ({ conversationId, question } = {}, callback) => {
+      const room = roomsStore.findRoomBySocket(socket.id);
+      if (!room) return callback?.({ error: 'You are not in a room.' });
+
+      const result = conversationStore.submitQuestion(room, socket.id, conversationId, question);
+      if (result.error) {
+        return callback?.({ error: result.error });
+      }
+
+      callback?.({ success: true });
+      // Both participants see the question — this is the "current
+      // conversation" becoming visible to the two of them, and only
+      // them (same per-socket delivery pattern as conversationStarted).
+      movementNamespace.to(result.conversation.askerId).emit('questionAsked', {
+        conversationId,
+        question: result.conversation.question,
+      });
+      movementNamespace.to(result.conversation.targetId).emit('questionAsked', {
+        conversationId,
+        question: result.conversation.question,
+      });
+    });
+
+    // --- QUESTIONING: SUBMIT ANSWER (also closes the conversation) ---
+    socket.on('submitAnswer', ({ conversationId, answer } = {}, callback) => {
+      const room = roomsStore.findRoomBySocket(socket.id);
+      if (!room) return callback?.({ error: 'You are not in a room.' });
+
+      const result = conversationStore.submitAnswerAndEnd(room, socket.id, conversationId, answer);
+      if (result.error) {
+        return callback?.({ error: result.error });
+      }
+
+      callback?.({ success: true });
+      // Per Phase 8 spec, the conversation auto-closes right after the
+      // reply — this single event tells both participants the final
+      // Q&A and that they're free to start new conversations again.
+      movementNamespace.to(result.record.askerId).emit('conversationEnded', result.record);
+      movementNamespace.to(result.record.targetId).emit('conversationEnded', result.record);
+    });
+
+    // --- QUESTIONING: INVESTIGATION LOG ---
+    // Returns only conversations this socket actually participated
+    // in — see conversation.js's getHistoryForPlayer, the single
+    // function responsible for that filtering.
+    socket.on('getInvestigationLog', (_payload, callback) => {
+      const room = roomsStore.findRoomBySocket(socket.id);
+      if (!room) return callback?.({ error: 'You are not in a room.' });
+      callback?.({ success: true, history: conversationStore.getHistoryForPlayer(room, socket.id) });
+    });
+
     // --- RECEIVE MOVEMENT INPUT ---
     // Clients send which keys are currently held, NOT a position.
     // The server is the only thing that ever computes position.
@@ -276,6 +377,23 @@ function attachMovementNetworking(io) {
       if (!room) return; // was never in a room (e.g. left at the entry screen)
 
       const code = room.code;
+
+      // If this player was mid-conversation, free their partner
+      // immediately rather than leaving them stuck unable to start a
+      // new one — this is disconnect cleanup, not a normal
+      // question/answer/close, so it doesn't touch history or the
+      // "last asked" rule (see conversation.js's forceRelease).
+      const releasedConvo = conversationStore.forceRelease(room, socket.id);
+      if (releasedConvo) {
+        const partnerId = releasedConvo.askerId === socket.id
+          ? releasedConvo.targetId
+          : releasedConvo.askerId;
+        movementNamespace.to(partnerId).emit('conversationCancelled', {
+          conversationId: releasedConvo.id,
+          reason: 'The other player disconnected.',
+        });
+      }
+
       const stillExists = roomsStore.removePlayerFromRoom(code, socket.id);
       charactersStore.releaseSelection(room, socket.id);
 

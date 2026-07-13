@@ -76,6 +76,45 @@
   </div>
 
   <!--
+    PHASE 8: interaction prompt, shown when standing near another
+    player. Purely a client-side hint — the server independently
+    re-validates distance on every actual request (see proximity.js).
+  -->
+  <p id="interaction-prompt" class="interaction-prompt hidden"></p>
+  <div id="interaction-chooser" class="panel interaction-chooser hidden"></div>
+
+  <!--
+    PHASE 8: the private question/answer panel. Only ever populated
+    with data the server sent to this client specifically — see
+    conversation.js.
+  -->
+  <div id="conversation-panel" class="panel conversation-panel hidden">
+    <h2>Questioning <span id="conversation-other-name"></span></h2>
+    <p id="conversation-question-display"></p>
+    <p id="conversation-waiting" class="hidden"></p>
+    <div id="conversation-question-input-wrap" class="hidden">
+      <input id="conversation-question-input" type="text" maxlength="200" placeholder="Type your question..." />
+      <button id="conversation-question-send" type="button">Ask</button>
+    </div>
+    <div id="conversation-answer-input-wrap" class="hidden">
+      <input id="conversation-answer-input" type="text" maxlength="200" placeholder="Type your answer..." />
+      <button id="conversation-answer-send" type="button">Answer</button>
+    </div>
+    <p id="conversation-error" class="error"></p>
+  </div>
+
+  <!--
+    PHASE 8: collapsible Investigation Log — only ever shows
+    conversations this client participated in (see investigation-log.js).
+  -->
+  <div id="investigation-log-container" class="investigation-log-container">
+    <button id="investigation-log-toggle" type="button">Investigation Log</button>
+    <div id="investigation-log-panel" class="panel hidden">
+      <ul id="investigation-log-list"></ul>
+    </div>
+  </div>
+
+  <!--
     The movement canvas itself, hidden until a room is joined. Once
     visible, world.js/canvas.js render exactly as they did in Phase 3
     — the only change is that the player roster they receive is now
@@ -100,6 +139,9 @@
   <script type="module" src="game-start.js"></script>
   <script type="module" src="role-reveal.js"></script>
   <script type="module" src="timer.js"></script>
+  <script type="module" src="proximity.js"></script>
+  <script type="module" src="conversation.js"></script>
+  <script type="module" src="investigation-log.js"></script>
   <script type="module" src="canvas.js"></script>
 </body>
 </html>
