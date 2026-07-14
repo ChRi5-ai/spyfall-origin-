@@ -124,3 +124,16 @@ socket.on('conversationEnded', () => {
 socket.on('conversationCancelled', () => {
   suppressed = false;
 });
+
+// Movement is paused server-side for the whole conference/elimination/
+// results sequence (see movement-network.js's tick loop), so there's
+// nothing meaningful to interact with during it — suppress the prompt
+// for the same duration rather than showing a hint that would always
+// be rejected if acted on.
+socket.on('conferenceStart', () => {
+  suppressed = true;
+  hidePrompt();
+});
+socket.on('returnToLobby', () => {
+  suppressed = false;
+});

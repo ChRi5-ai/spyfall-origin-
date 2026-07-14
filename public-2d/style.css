@@ -358,3 +358,219 @@ body {
   padding: 4px 0;
   border-bottom: 1px solid #3a4a3f;
 }
+
+/* Call Vote button — top center, out of the way of other corner UI. */
+.call-vote-btn {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: inherit;
+  padding: 8px 16px;
+  background: #e63946;
+  color: #f1faee;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  z-index: 5;
+}
+
+.call-vote-btn:hover {
+  background: #ff4d5e;
+}
+
+.vote-request-prompt {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 260px;
+  z-index: 10;
+}
+
+.vote-request-prompt button {
+  font-family: inherit;
+  padding: 8px 14px;
+  margin: 4px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #f1faee;
+}
+
+#vote-request-accept {
+  background: #588157;
+}
+#vote-request-accept:hover {
+  background: #6ea36c;
+}
+
+#vote-request-decline {
+  background: #e63946;
+}
+#vote-request-decline:hover {
+  background: #ff4d5e;
+}
+
+.vote-request-status {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.85rem;
+  color: #f4a261;
+}
+
+/* Conference room — simple placeholder circular layout, no final
+   artwork per Phase 9A scope. */
+.conference-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 360px;
+  text-align: center;
+  z-index: 10;
+}
+
+.conference-table {
+  position: relative;
+  width: 320px;
+  height: 320px;
+  margin: 16px auto;
+  border-radius: 50%;
+  border: 3px solid #588157;
+  background: #223229;
+}
+
+.conference-seat {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid #588157;
+  background: #3a5a40;
+  color: #f1faee;
+  font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.conference-seat:not(:disabled):hover {
+  background: #6ea36c;
+}
+
+.conference-seat-self {
+  cursor: not-allowed;
+  border-color: #f4a261;
+}
+
+.conference-seat-character {
+  font-weight: bold;
+  font-size: 1rem;
+}
+
+.conference-seat-name {
+  font-size: 0.6rem;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 54px;
+  white-space: nowrap;
+}
+
+.conference-status {
+  font-size: 1rem;
+  color: #f4a261;
+  min-height: 1.2em;
+}
+
+/* Elimination / spy guess / results — all centered overlays, same
+   general treatment as the conference panel. Placeholder styling
+   only, per Phase 9B scope. */
+#elimination-panel,
+#spy-guess-panel,
+.results-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  min-width: 320px;
+  text-align: center;
+  z-index: 10;
+}
+
+.spy-guess-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.spy-guess-options button {
+  font-family: inherit;
+  padding: 8px 14px;
+  background: #588157;
+  color: #f1faee;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.spy-guess-options button:not(:disabled):hover {
+  background: #6ea36c;
+}
+
+.spy-guess-options button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.spy-guess-status {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #f4a261;
+}
+
+.results-winner {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #f4a261;
+  margin: 4px 0 12px;
+}
+
+.results-panel ul {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  text-align: left;
+  font-size: 0.85rem;
+}
+
+.results-panel li {
+  padding: 2px 0;
+}
+
+.results-panel button {
+  font-family: inherit;
+  padding: 8px 16px;
+  margin: 4px;
+  background: #588157;
+  color: #f1faee;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.results-panel button:not(:disabled):hover {
+  background: #6ea36c;
+}
+
+.results-panel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -52,6 +52,11 @@ socket.on('conversationEnded', (record) => {
   if (isOpen) render();
 });
 
+socket.on('returnToLobby', () => {
+  history = [];
+  if (isOpen) render();
+});
+
 // Hydrate once gameplay starts. Requested here (rather than at page
 // load) since there's no meaningful history before a game exists.
 socket.on('gameStart', () => {

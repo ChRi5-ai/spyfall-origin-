@@ -50,4 +50,44 @@ function getTimerInfo(room) {
   return { endsAt: existing.endsAt, durationMs: existing.durationMs };
 }
 
-module.exports = { startTimer, clearTimer, getTimerInfo };
+// PHASE 9A ADDITIONS — pausing/resuming for the conference room
+// transition. Neither of these touches startTimer/clearTimer/
+// getTimerInfo above; they're purely additive so nothing that already
+// depends on this module's existing behavior is affected.
+
+// Pauses a running timer, remembering how much time was left so it
+// can be resumed later from the same point rather than restarting.
+// Returns { remainingMs } or null if there was no active timer.
+function pauseTimer(room) {
+  const existing = activeTimers[room.code];
+  if (!existing || !existing.timeoutHandle) return null;
+
+  clearTimeout(existing.timeoutHandle);
+  const remainingMs = Math.max(0, existing.endsAt - Date.now());
+  activeTimers[room.code] = {
+    ...existing,
+    timeoutHandle: null,
+    remainingMs,
+  };
+  return { remainingMs };
+}
+
+// Resumes a previously-paused timer from its remaining duration.
+// Returns { endsAt, durationMs } (the new end time), or null if
+// there was nothing paused to resume.
+function resumeTimer(room, onExpire) {
+  const existing = activeTimers[room.code];
+  if (!existing || existing.remainingMs == null) return null;
+
+  const remainingMs = existing.remainingMs;
+  const endsAt = Date.now() + remainingMs;
+  const timeoutHandle = setTimeout(() => {
+    delete activeTimers[room.code];
+    onExpire();
+  }, remainingMs);
+
+  activeTimers[room.code] = { timeoutHandle, endsAt, durationMs: existing.durationMs };
+  return { endsAt, durationMs: remainingMs };
+}
+
+module.exports = { startTimer, clearTimer, getTimerInfo, pauseTimer, resumeTimer };

@@ -76,6 +76,64 @@
   </div>
 
   <!--
+    PHASE 9A: Call Vote button, visible during discussion. Its own
+    visibility is toggled by conference.js once voting actually
+    starts — the button itself never decides eligibility, the server
+    does (see server/vote-request.js).
+  -->
+  <button id="call-vote-btn" type="button" class="hidden call-vote-btn">Call Vote</button>
+
+  <!--
+    PHASE 9A: accept/decline prompt shown to everyone except the
+    caller when a vote is requested.
+  -->
+  <div id="vote-request-prompt" class="panel vote-request-prompt hidden">
+    <p id="vote-request-text"></p>
+    <button id="vote-request-accept" type="button">Accept</button>
+    <button id="vote-request-decline" type="button">Decline</button>
+  </div>
+  <p id="vote-request-status" class="vote-request-status"></p>
+
+  <!--
+    PHASE 9A: conference room — placeholder circular layout, no final
+    artwork. Movement is disabled entirely server-side while this is
+    active; nothing here needs to touch input.js.
+  -->
+  <div id="conference-panel" class="panel conference-panel hidden">
+    <h2>Conference Room</h2>
+    <div id="conference-table" class="conference-table"></div>
+    <p id="conference-status" class="conference-status"></p>
+  </div>
+
+  <!-- PHASE 9B: public elimination reveal — same for every player. -->
+  <div id="elimination-panel" class="panel hidden">
+    <h2>Elimination</h2>
+    <p id="elimination-text"></p>
+  </div>
+
+  <!--
+    PHASE 9B: only ever shown to the actual eliminated spy — the
+    server sends 'spyGuessPrompt' privately to that one socket.
+  -->
+  <div id="spy-guess-panel" class="panel hidden">
+    <h2>Guess the Location</h2>
+    <div id="spy-guess-options" class="spy-guess-options"></div>
+    <p id="spy-guess-status" class="spy-guess-status"></p>
+  </div>
+
+  <!-- PHASE 9B: results screen — public to everyone once the match ends. -->
+  <div id="results-panel" class="panel results-panel hidden">
+    <h2>Results</h2>
+    <p id="results-winner" class="results-winner"></p>
+    <p>Spy: <span id="results-spy"></span></p>
+    <p>Correct Location: <span id="results-location"></span></p>
+    <ul id="results-players"></ul>
+    <button id="play-again-btn" type="button">Play Again</button>
+    <button id="return-to-lobby-btn" type="button">Return to Lobby</button>
+    <p id="results-error" class="error"></p>
+  </div>
+
+  <!--
     PHASE 8: interaction prompt, shown when standing near another
     player. Purely a client-side hint — the server independently
     re-validates distance on every actual request (see proximity.js).
@@ -142,6 +200,11 @@
   <script type="module" src="proximity.js"></script>
   <script type="module" src="conversation.js"></script>
   <script type="module" src="investigation-log.js"></script>
+  <script type="module" src="vote-request.js"></script>
+  <script type="module" src="conference.js"></script>
+  <script type="module" src="elimination.js"></script>
+  <script type="module" src="spy-guess.js"></script>
+  <script type="module" src="results.js"></script>
   <script type="module" src="canvas.js"></script>
 </body>
 </html>
