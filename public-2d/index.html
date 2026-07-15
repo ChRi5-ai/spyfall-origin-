@@ -5,13 +5,127 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spyfall 2D</title>
   <link rel="stylesheet" href="style.css" />
+  <!--
+    PHASE 10.1: the pixel font used by the opening title is loaded via
+    @font-face in style.css, from assets/fonts/ — see the project
+    deliverables notes for the exact expected filename. No <link> tag
+    is needed here since @font-face handles loading.
+  -->
 </head>
 <body>
+  <!--
+    PHASE 10.2: persistent animated background canvas — now a
+    top-level element (rather than living inside the opening overlay)
+    so the same running animation continues unbroken behind both the
+    opening screen and the main menu. Always rendered behind
+    everything else (see z-index: -1 in style.css).
+  -->
+  <canvas id="background-canvas" class="background-canvas"></canvas>
+
+  <!--
+    PHASE 10.1 — Opening sequence overlay. Sits on top of everything
+    else via z-index (see style.css) and is purely additive: nothing
+    below this block was changed. Once dismissed, this overlay hides
+    itself and reveals the main menu (Phase 10.2).
+  -->
+  <div id="opening-overlay" class="opening-overlay">
+    <!--
+      PHASE 10.5: dedicated canvas for the opening scene only, living
+      inside the overlay itself. Separate from #background-canvas
+      (which is the main menu's persistent background) — the two
+      never share a canvas, so nothing drawn for one can ever affect
+      the other.
+    -->
+    <canvas id="opening-scene-canvas" class="opening-scene-canvas"></canvas>
+    <div id="opening-title" class="opening-title">
+      <div class="opening-title-main">SPYFALL</div>
+      <div class="opening-title-sub">REDEFINED</div>
+    </div>
+    <p id="opening-continue" class="opening-continue">Click Anywhere To Begin</p>
+  </div>
+
+  <!--
+    PHASE 10.2 — Main menu. Sits above the (untouched, always-present)
+    lobby entry screen and below the opening overlay. "Create Party"
+    and "Join Party" simply fade this away, revealing #lobby-entry
+    exactly as it already was.
+  -->
+  <div id="main-menu-overlay" class="main-menu-overlay hidden">
+    <div class="main-menu-title">SPYFALL <span>REDEFINED</span></div>
+    <nav class="main-menu-buttons">
+      <button id="menu-create-party-btn" type="button" class="menu-button">Create Party</button>
+      <button id="menu-join-party-btn" type="button" class="menu-button">Join Party</button>
+      <button id="menu-tutorial-btn" type="button" class="menu-button">Tutorial</button>
+      <button id="menu-settings-btn" type="button" class="menu-button">Settings</button>
+    </nav>
+  </div>
+
+  <!--
+    PHASE 10.3 — single shared "Back to Menu" control, reused across
+    the lobby entry screen, Tutorial popup, and Settings popup rather
+    than duplicating a back button in each. Visibility and behavior
+    are entirely owned by main-menu.js; it does not exist inside any
+    of those individual screens' own markup.
+  -->
+  <button id="back-to-menu-btn" type="button" class="back-to-menu-btn hidden">&larr; Back to Menu</button>
+
+  <!-- PHASE 10.2 — Settings popup. Controls are placeholders only, per scope. -->
+  <div id="settings-popup" class="popup hidden">
+    <div class="popup-content">
+      <h2>Settings</h2>
+      <div class="popup-row">
+        <label for="settings-master-volume">Master Volume</label>
+        <input id="settings-master-volume" type="range" min="0" max="100" value="80" disabled />
+      </div>
+      <div class="popup-row">
+        <label for="settings-music-volume">Music Volume</label>
+        <input id="settings-music-volume" type="range" min="0" max="100" value="50" disabled />
+      </div>
+      <div class="popup-row">
+        <label for="settings-sfx-volume">SFX Volume</label>
+        <input id="settings-sfx-volume" type="range" min="0" max="100" value="70" disabled />
+      </div>
+      <div class="popup-row">
+        <label for="settings-fullscreen">Fullscreen</label>
+        <input id="settings-fullscreen" type="checkbox" disabled />
+      </div>
+      <button id="settings-close-btn" type="button" class="menu-button">Close</button>
+    </div>
+  </div>
+
+  <!-- PHASE 10.2 — Tutorial popup. -->
+  <div id="tutorial-popup" class="popup hidden">
+    <div class="popup-content">
+      <h2>How To Play</h2>
+      <div class="tutorial-section">
+        <h3>Goal</h3>
+        <p>Find the Spy.</p>
+      </div>
+      <div class="tutorial-section">
+        <h3>Civilian</h3>
+        <p>Discover the Spy.</p>
+      </div>
+      <div class="tutorial-section">
+        <h3>Spy</h3>
+        <p>Blend in and identify the location.</p>
+      </div>
+      <div class="tutorial-section">
+        <h3>Movement</h3>
+        <p>Walk around to ask nearby players.</p>
+      </div>
+      <div class="tutorial-section">
+        <h3>Voting</h3>
+        <p>Vote together to eliminate the suspected Spy.</p>
+      </div>
+      <button id="tutorial-close-btn" type="button" class="menu-button">Close</button>
+    </div>
+  </div>
+
   <!--
     PHASE 4: entry screen shown before joining a party. Hidden once a
     'lobby' event arrives from the server (see lobby.js).
   -->
-  <div id="lobby-entry" class="panel">
+  <div id="lobby-entry" class="panel hidden">
     <h1>Spyfall 2D</h1>
     <button id="create-room-btn">Create Room</button>
     <div class="divider">or</div>
@@ -165,7 +279,7 @@
     PHASE 8: collapsible Investigation Log — only ever shows
     conversations this client participated in (see investigation-log.js).
   -->
-  <div id="investigation-log-container" class="investigation-log-container">
+  <div id="investigation-log-container" class="investigation-log-container hidden">
     <button id="investigation-log-toggle" type="button">Investigation Log</button>
     <div id="investigation-log-panel" class="panel hidden">
       <ul id="investigation-log-list"></ul>
@@ -184,6 +298,15 @@
 
   <!-- Socket.io client, served automatically by the socket.io server -->
   <script src="/socket.io/socket.io.js"></script>
+
+  <!--
+    PHASE 10.1: opening sequence — loaded first since it's the first
+    thing the player sees. Fully independent of everything below it.
+  -->
+  <script type="module" src="menu-background.js"></script>
+  <script type="module" src="opening-scene.js"></script>
+  <script type="module" src="main-menu.js"></script>
+  <script type="module" src="opening.js"></script>
 
   <!--
     lobby.js and canvas.js are two independent entry points sharing

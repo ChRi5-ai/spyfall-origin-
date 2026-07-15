@@ -17,7 +17,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1b2a23;
+  /* PHASE 10.5 FIX: was a dark green (#1b2a23). This is the page's
+     raw fallback color — visible only in the brief gap before any
+     canvas/overlay has painted over it. That gap is exactly what
+     caused a visible green flash during the opening→menu transition.
+     A near-black tone matches every night-scene canvas here instead,
+     so there's nothing to flash regardless of paint timing. This is
+     a page-level base color, not a redesign of any specific screen. */
+  background: #05080a;
   font-family: 'Courier New', monospace;
   color: #f1faee;
 }
@@ -573,4 +580,341 @@ body {
 .results-panel button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ============================================================
+   PHASE 10.1 — OPENING SEQUENCE
+   ============================================================
+   Purely additive: nothing above this point was changed. This
+   overlay sits above every other screen (z-index) until dismissed.
+   ============================================================ */
+
+@font-face {
+  font-family: 'SpyfallPixel';
+  /* See project deliverables notes for the exact file to place here.
+     Falls back to the existing monospace stack below until then, so
+     nothing looks broken in the meantime. */
+  src: url('assets/fonts/pixel-font.woff2') format('woff2');
+  font-display: swap;
+}
+
+.opening-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  cursor: pointer;
+  overflow: hidden;
+  transition: opacity 900ms ease;
+}
+
+.opening-overlay.opening-overlay-fading {
+  opacity: 0;
+}
+
+/* PHASE 10.5: dedicated canvas for the opening scene, contained
+   entirely within .opening-overlay (see index.html) — separate from
+   .background-canvas below, which is the main menu's own persistent
+   canvas. Positioned behind the title within the overlay's own
+   stacking context. */
+.opening-scene-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.background-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+
+.opening-title {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 1400ms ease, transform 1400ms ease;
+}
+
+.opening-title.opening-title-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.opening-title-main {
+  font-family: 'SpyfallPixel', 'Courier New', monospace;
+  font-size: 4.5rem;
+  letter-spacing: 0.15em;
+  color: #f1faee;
+  text-shadow: 0 0 24px rgba(88, 129, 87, 0.6);
+}
+
+.opening-title-sub {
+  font-family: 'SpyfallPixel', 'Courier New', monospace;
+  font-size: 1.4rem;
+  letter-spacing: 0.4em;
+  color: #f4a261;
+  margin-top: 8px;
+}
+
+.opening-continue {
+  position: relative;
+  z-index: 1;
+  margin-top: 48px;
+  font-family: 'SpyfallPixel', 'Courier New', monospace;
+  font-size: 1rem;
+  letter-spacing: 0.1em;
+  color: #f1faee;
+  opacity: 0;
+  transition: opacity 1000ms ease;
+}
+
+.opening-continue.opening-continue-visible {
+  opacity: 0.85;
+  animation: opening-pulse 2200ms ease-in-out infinite;
+}
+
+@keyframes opening-pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 600px) {
+  .opening-title-main {
+    font-size: 2.8rem;
+  }
+  .opening-title-sub {
+    font-size: 1rem;
+  }
+}
+
+/* ============================================================
+   PHASE 10.2 — MAIN MENU
+   ============================================================
+   Purely additive: nothing above this point was changed except the
+   background-canvas rule (updated above for its new persistent role)
+   and the opening-overlay markup, which no longer nests the canvas.
+   ============================================================ */
+
+.main-menu-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  /* A soft scrim over the animated background keeps menu text legible
+     without hiding the ambient motion behind it entirely. */
+  background: radial-gradient(circle at 50% 40%, rgba(27, 42, 35, 0.55), rgba(13, 23, 18, 0.88));
+  opacity: 0;
+  transform: scale(0.97);
+  transition: opacity 700ms ease, transform 700ms ease;
+}
+
+.main-menu-overlay.main-menu-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.main-menu-overlay.main-menu-fading {
+  opacity: 0;
+  transform: scale(1.02);
+}
+
+.main-menu-title {
+  font-family: 'SpyfallPixel', 'Courier New', monospace;
+  font-size: 2.4rem;
+  letter-spacing: 0.12em;
+  color: #f1faee;
+  text-shadow: 0 0 20px rgba(88, 129, 87, 0.5);
+  text-align: center;
+}
+
+.main-menu-title span {
+  display: block;
+  font-size: 0.9rem;
+  letter-spacing: 0.35em;
+  color: #f4a261;
+  margin-top: 6px;
+}
+
+.main-menu-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 18px;
+  width: min(300px, 80vw);
+}
+
+.menu-button {
+  font-family: 'SpyfallPixel', 'Courier New', monospace;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  padding: 14px 20px;
+  background: #2b3d33;
+  color: #f1faee;
+  border: 2px solid #588157;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.menu-button:hover {
+  transform: scale(1.04);
+  background: #354a3c;
+  border-color: #f4a261;
+  box-shadow: 0 0 18px rgba(244, 162, 97, 0.45);
+}
+
+.menu-button:active {
+  transform: scale(0.97);
+  box-shadow: 0 0 8px rgba(244, 162, 97, 0.3);
+}
+
+@media (max-width: 600px) {
+  .main-menu-title {
+    font-size: 1.7rem;
+  }
+  .main-menu-buttons {
+    width: 88vw;
+  }
+  .menu-button {
+    font-size: 0.9rem;
+    padding: 12px 16px;
+  }
+}
+
+/* ============================================================
+   PHASE 10.2 — POPUPS (Settings / Tutorial)
+   ============================================================ */
+
+.popup {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(13, 23, 18, 0.75);
+}
+
+.popup-content {
+  background: #2b3d33;
+  border: 2px solid #588157;
+  border-radius: 8px;
+  padding: 28px 32px;
+  width: min(360px, 88vw);
+  max-height: 82vh;
+  overflow-y: auto;
+  color: #f1faee;
+  font-family: 'SpyfallPixel', 'Courier New', monospace;
+}
+
+.popup-content h2 {
+  margin-top: 0;
+  font-size: 1.3rem;
+  letter-spacing: 0.08em;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.popup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+}
+
+.popup-row label {
+  flex-shrink: 0;
+}
+
+.popup-row input[type='range'] {
+  flex: 1;
+  accent-color: #588157;
+}
+
+.popup-row input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  accent-color: #588157;
+}
+
+.tutorial-section {
+  margin-bottom: 14px;
+}
+
+.tutorial-section h3 {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  color: #f4a261;
+  letter-spacing: 0.06em;
+}
+
+.tutorial-section p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  font-family: 'Courier New', monospace;
+}
+
+.popup-content > .menu-button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+  .popup-content {
+    padding: 20px 22px;
+  }
+}
+
+/* ============================================================
+   PHASE 10.3 — SHARED BACK TO MENU BUTTON
+   ============================================================ */
+
+.back-to-menu-btn {
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1200;
+  font-family: 'SpyfallPixel', 'Courier New', monospace;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  padding: 8px 14px;
+  background: #2b3d33;
+  color: #f1faee;
+  border: 2px solid #588157;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.back-to-menu-btn:hover {
+  transform: scale(1.04);
+  border-color: #f4a261;
+  box-shadow: 0 0 14px rgba(244, 162, 97, 0.4);
+}
+
+.back-to-menu-btn:active {
+  transform: scale(0.97);
 }

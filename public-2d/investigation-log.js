@@ -16,6 +16,7 @@
 
 import socket from './socket.js';
 
+const containerEl = document.getElementById('investigation-log-container');
 const toggleBtn = document.getElementById('investigation-log-toggle');
 const logPanelEl = document.getElementById('investigation-log-panel');
 const logListEl = document.getElementById('investigation-log-list');
@@ -54,12 +55,18 @@ socket.on('conversationEnded', (record) => {
 
 socket.on('returnToLobby', () => {
   history = [];
-  if (isOpen) render();
+  isOpen = false;
+  logPanelEl.classList.add('hidden');
+  containerEl.classList.add('hidden');
 });
 
 // Hydrate once gameplay starts. Requested here (rather than at page
 // load) since there's no meaningful history before a game exists.
+// This is also the only place the log container itself is revealed —
+// it must never be visible on the opening screen, main menu, lobby,
+// or character selection, only once actual gameplay begins.
 socket.on('gameStart', () => {
+  containerEl.classList.remove('hidden');
   socket.emit('getInvestigationLog', {}, (res) => {
     if (res?.success) {
       history = res.history;
