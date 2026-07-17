@@ -263,7 +263,31 @@ function attachMovementNetworking(io) {
     // Tells this client its own socket id immediately, so lobby UI
     // can determine "am I the host" by comparing against `hostId`
     // once it receives a 'lobby' snapshot.
+    // --- TEMPORARY DIAGNOSTIC LOGGING (remove after debugging) ---
+    console.log('[server debug] emitting self', {
+      socketId: socket.id,
+      room: 'none yet — emitted immediately on connect, before any room exists',
+      timestamp: Date.now(),
+    });
+    // --- END TEMPORARY DIAGNOSTIC LOGGING ---
     socket.emit('self', { id: socket.id });
+
+    // --- FIX: race-proof identity request ---
+    // The 'self' emit above is a fire-and-forget push, sent the
+    // instant this socket connects. If the client's listener for it
+    // (network.js) hasn't been registered yet at that exact moment —
+    // which depends on unbundled <script type="module"> load/fetch
+    // order, not on anything server-controlled — Socket.io does not
+    // buffer or replay the event; it is simply lost, and nothing
+    // would ever set selfId again, since 'self' is only emitted once
+    // per connection. 'whoAmI' fixes this by making identity a
+    // request the client sends only once it's actually ready to
+    // receive the answer via an acknowledgement callback, which by
+    // construction cannot suffer this race — there's no way to "miss"
+    // a response to a request you haven't sent yet.
+    socket.on('whoAmI', (callback) => {
+      callback?.({ id: socket.id });
+    });
 
     // --- CREATE ROOM ---
     socket.on('createRoom', (_payload, callback) => {
@@ -722,6 +746,43 @@ function attachMovementNetworking(io) {
       movementNamespace.to(room.code).emit('state', buildMovementSnapshot(room));
     }
   }, TICK_MS);
+
+  // --- STALE CONVERSATION SWEEP (bug fix) ---
+  // A conversation's "busy" state (server/conversation.js's
+  // activeByPlayer) was previously only ever cleared by a completed
+  // question-and-answer exchange or a disconnect. Since movement is
+  // never disabled during a conversation, either participant can walk
+  // away and simply never answer — with nothing to clear their busy
+  // state, both players would then be permanently unable to start any
+  // new conversation with anyone, regardless of distance. That's the
+  // root cause of "one player sometimes can't question, even in
+  // range": it depended entirely on whether they happened to have an
+  // abandoned conversation left over from earlier in the match.
+  //
+  // This sweep runs independently of the movement tick (much less
+  // frequently — there's no need to check every 33ms for something
+  // that only matters after whole seconds), and reuses the exact same
+  // 'conversationCancelled' event and per-socket delivery pattern
+  // already used for the disconnect and vote-start cancellation
+  // cases above, so no client-side change is needed at all — both
+  // conversation.js and proximity.js already reset correctly on that
+  // event.
+  const CONVERSATION_SWEEP_INTERVAL_MS = 5000;
+  setInterval(() => {
+    for (const room of roomsStore.allRooms()) {
+      const released = conversationStore.releaseStaleConversations(room);
+      for (const convo of released) {
+        movementNamespace.to(convo.askerId).emit('conversationCancelled', {
+          conversationId: convo.id,
+          reason: 'The conversation timed out.',
+        });
+        movementNamespace.to(convo.targetId).emit('conversationCancelled', {
+          conversationId: convo.id,
+          reason: 'The conversation timed out.',
+        });
+      }
+    }
+  }, CONVERSATION_SWEEP_INTERVAL_MS);
 }
 
 module.exports = { attachMovementNetworking };

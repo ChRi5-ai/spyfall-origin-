@@ -31,6 +31,34 @@ function getSelfId() {
 }
 
 socket.on('self', ({ id }) => {
+  // --- TEMPORARY DIAGNOSTIC LOGGING (remove after debugging) ---
+  console.log('[network debug] socket.on(self) fired', { receivedId: id, timestamp: Date.now() });
+  if (selfId !== null && selfId !== id) {
+    console.warn('[network debug] selfId changed after initial assignment', {
+      previousSelfId: selfId,
+      newSelfId: id,
+      timestamp: Date.now(),
+    });
+  }
+  // --- END TEMPORARY DIAGNOSTIC LOGGING ---
+  selfId = id;
+});
+
+// --- FIX: race-proof identity request ---
+// The server's 'self' push (above) can be missed if this listener
+// isn't registered yet at the exact moment it's sent — see
+// server/movement-network.js's matching comment. This request/ack
+// pair can't suffer that race: it's only sent once this module has
+// already executed and is ready to receive the callback, so there's
+// no window where the response could arrive before anything is
+// listening for it. If 'self' already arrived first, this just
+// reconfirms the same id; if 'self' was lost, this is what actually
+// sets selfId. Either way, getSelfId() is guaranteed a valid value
+// before proximity checks (or anything else depending on it) run.
+socket.emit('whoAmI', ({ id }) => {
+  // --- TEMPORARY DIAGNOSTIC LOGGING (remove after debugging) ---
+  console.log('[network debug] whoAmI response received', { receivedId: id, timestamp: Date.now() });
+  // --- END TEMPORARY DIAGNOSTIC LOGGING ---
   selfId = id;
 });
 

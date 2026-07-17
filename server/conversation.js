@@ -66,7 +66,7 @@ function startConversation(room, askerId, targetId) {
   ensureInitialized(room);
   conversationCounter += 1;
   const id = `conv-${conversationCounter}`;
-  const conversation = { id, askerId, targetId, question: null, answer: null };
+  const conversation = { id, askerId, targetId, question: null, answer: null, startedAt: Date.now() };
   room.conversations.byId[id] = conversation;
   room.conversations.activeByPlayer[askerId] = id;
   room.conversations.activeByPlayer[targetId] = id;
@@ -157,6 +157,39 @@ function forceRelease(room, socketId) {
   return convo;
 }
 
+// How long a conversation may sit open (question never asked, or
+// asked but never answered) before it's considered abandoned. Per
+// spec, movement is never disabled during a conversation, so either
+// participant can simply walk away and never return — without this,
+// `activeByPlayer` for both of them would never be cleared, which is
+// exactly the bug: both players permanently unable to start any new
+// conversation with anyone, no matter how close they stand to someone
+// else, until they eventually disconnect.
+const ABANDONED_CONVERSATION_TIMEOUT_MS = 30000;
+
+// Finds and releases every conversation in `room` that's been open
+// longer than the timeout without completing. Same non-recording
+// release as forceRelease (an abandoned conversation isn't a real
+// question-and-answer exchange, so it shouldn't appear in anyone's
+// Investigation Log or count toward the "last asked" rule). Returns
+// the list of released conversations so the caller can notify both
+// participants of each one.
+function releaseStaleConversations(room, timeoutMs = ABANDONED_CONVERSATION_TIMEOUT_MS) {
+  ensureInitialized(room);
+  const now = Date.now();
+  const released = [];
+
+  for (const convo of Object.values(room.conversations.byId)) {
+    if (now - convo.startedAt < timeoutMs) continue;
+    delete room.conversations.activeByPlayer[convo.askerId];
+    delete room.conversations.activeByPlayer[convo.targetId];
+    delete room.conversations.byId[convo.id];
+    released.push(convo);
+  }
+
+  return released;
+}
+
 // Every completed conversation `socketId` participated in, as either
 // asker or target — never anyone else's. This is the only function
 // that reads history back out, the same "one function owns the
@@ -176,5 +209,6 @@ module.exports = {
   submitQuestion,
   submitAnswerAndEnd,
   forceRelease,
+  releaseStaleConversations,
   getHistoryForPlayer,
 };
