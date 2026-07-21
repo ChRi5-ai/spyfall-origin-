@@ -23,10 +23,12 @@
 // ============================================================
 
 import socket from './socket.js';
+import { drawPreviewFrame, getSheet } from './sprites.js';
 
 let selfId = null;
 
 const gridEl = document.getElementById('character-grid');
+const PREVIEW_SIZE = 32; // matches sprites.js's FRAME_SIZE — native resolution, scaled via CSS for crisp pixels
 
 socket.on('self', ({ id }) => {
   selfId = id;
@@ -39,9 +41,26 @@ function renderCharacterGrid(lobby) {
     const slot = document.createElement('button');
     slot.className = 'character-slot';
     slot.type = 'button';
-    // Portraits are deliberately plain placeholders (no sprite art
-    // yet) — just the character's fixed number.
-    slot.textContent = character.id.replace('char-', '');
+
+    // PHASE 10.3: character previews only, no NPC names or numbers —
+    // a small canvas drawing the sheet's idle-down frame.
+    const previewCanvas = document.createElement('canvas');
+    previewCanvas.width = PREVIEW_SIZE;
+    previewCanvas.height = PREVIEW_SIZE;
+    previewCanvas.className = 'character-slot-preview';
+    const previewCtx = previewCanvas.getContext('2d');
+    drawPreviewFrame(previewCtx, character.id, 0, 0, PREVIEW_SIZE);
+    // Sprite sheets load asynchronously — drawPreviewFrame is a
+    // silent no-op if the image isn't ready yet (see sprites.js), so
+    // redraw once it actually loads in case this render happened
+    // before that finished (e.g. the very first grid render of the
+    // whole lobby, before any sheet has ever been requested).
+    getSheet(character.id).addEventListener(
+      'load',
+      () => drawPreviewFrame(previewCtx, character.id, 0, 0, PREVIEW_SIZE),
+      { once: true }
+    );
+    slot.appendChild(previewCanvas);
 
     if (character.takenBy) {
       slot.classList.add('taken');

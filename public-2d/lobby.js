@@ -15,6 +15,7 @@
 // ============================================================
 
 import socket from './socket.js';
+import { drawPreviewFrame, getSheet } from './sprites.js';
 
 let selfId = null;
 
@@ -27,6 +28,7 @@ const gameRootEl = document.getElementById('game-root');
 const createBtn = document.getElementById('create-room-btn');
 const joinBtn = document.getElementById('join-room-btn');
 const joinCodeInput = document.getElementById('join-code-input');
+const codenameInput = document.getElementById('codename-input');
 const errorEl = document.getElementById('lobby-error');
 
 const roomCodeDisplayEl = document.getElementById('room-code-display');
@@ -35,6 +37,17 @@ const playerCountEl = document.getElementById('player-count');
 const playerListEl = document.getElementById('player-list');
 const startBtn = document.getElementById('start-game-btn');
 const startMessageEl = document.getElementById('start-message');
+
+const CODENAME_PREVIEW_SIZE = 32; // matches sprites.js's FRAME_SIZE — native resolution, scaled via CSS
+
+// Mirrors the server's own 3–16 character rule (server/movement-network.js)
+// purely so the player gets immediate feedback — the server remains
+// the sole authority and re-validates independently regardless.
+function getValidatedCodename() {
+  const value = codenameInput.value.trim();
+  if (value.length < 3 || value.length > 16) return null;
+  return value;
+}
 
 function showError(message) {
   errorEl.textContent = message;
@@ -68,22 +81,43 @@ function renderLobby(lobby) {
   playerListEl.innerHTML = '';
   for (const player of lobby.players) {
     const li = document.createElement('li');
-    // Character is shown as its fixed number, matching the label
-    // used on the character grid itself (see characters.js) — or
-    // "Not Selected" if this player hasn't picked one yet. Character
-    // *ownership* itself is still decided entirely server-side; this
-    // is read-only display of what the server already reported.
-    const characterLabel = player.characterId
-      ? `Character ${player.characterId.replace('char-', '')}`
-      : 'Not Selected';
-    li.textContent = `${player.name} — ${characterLabel}`;
+    li.className = 'lobby-player-entry';
+
+    // PHASE 10.3: sprite preview beside the codename, matching the
+    // same idle-down frame shown on the character-selection grid —
+    // or an empty placeholder box if this player hasn't picked a
+    // character yet. Character *ownership* is still decided entirely
+    // server-side; this is read-only display of what was reported.
+    if (player.characterId) {
+      const previewCanvas = document.createElement('canvas');
+      previewCanvas.width = CODENAME_PREVIEW_SIZE;
+      previewCanvas.height = CODENAME_PREVIEW_SIZE;
+      previewCanvas.className = 'lobby-player-preview';
+      const previewCtx = previewCanvas.getContext('2d');
+      drawPreviewFrame(previewCtx, player.characterId, 0, 0, CODENAME_PREVIEW_SIZE);
+      getSheet(player.characterId).addEventListener(
+        'load',
+        () => drawPreviewFrame(previewCtx, player.characterId, 0, 0, CODENAME_PREVIEW_SIZE),
+        { once: true }
+      );
+      li.appendChild(previewCanvas);
+    } else {
+      const placeholder = document.createElement('span');
+      placeholder.className = 'lobby-player-preview lobby-player-preview-empty';
+      li.appendChild(placeholder);
+    }
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = player.name;
     if (player.id === lobby.hostId) {
-      li.textContent += ' (host)';
-      li.classList.add('host-entry');
+      nameSpan.textContent += ' (host)';
+      nameSpan.classList.add('host-entry');
     }
     if (player.id === selfId) {
-      li.textContent += ' (you)';
+      nameSpan.textContent += ' (you)';
     }
+    li.appendChild(nameSpan);
+
     playerListEl.appendChild(li);
   }
 
@@ -129,7 +163,12 @@ socket.on('lobby', (lobby) => {
 
 createBtn.addEventListener('click', () => {
   clearError();
-  socket.emit('createRoom', {}, (res) => {
+  const codename = getValidatedCodename();
+  if (!codename) {
+    showError('Enter a codename (3–16 characters).');
+    return;
+  }
+  socket.emit('createRoom', { codename }, (res) => {
     if (res?.error) showError(res.error);
   });
 });
@@ -141,7 +180,12 @@ joinBtn.addEventListener('click', () => {
     showError('Enter a room code.');
     return;
   }
-  socket.emit('joinRoom', { code }, (res) => {
+  const codename = getValidatedCodename();
+  if (!codename) {
+    showError('Enter a codename (3–16 characters).');
+    return;
+  }
+  socket.emit('joinRoom', { code, codename }, (res) => {
     if (res?.error) showError(res.error);
   });
 });

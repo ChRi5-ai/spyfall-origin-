@@ -182,6 +182,39 @@ body {
   color: #f1faee;
 }
 
+/* PHASE 10.3: sprite preview canvases — rendered at native 32x32
+   resolution in JS, scaled up here with pixelated interpolation so
+   the pixel-art sheets stay crisp rather than blurring. */
+.character-slot-preview {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  pointer-events: none;
+}
+
+.lobby-player-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.lobby-player-preview {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  border: 1px solid #588157;
+  border-radius: 3px;
+  background: #1b2a23;
+}
+
+.lobby-player-preview-empty {
+  display: inline-block;
+}
+
 /* Settings panel sits centered along the bottom, out of the way of
    both corner panels. */
 #settings-panel {

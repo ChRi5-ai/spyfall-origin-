@@ -61,6 +61,12 @@ function colorForIndex(index) {
 // Wire-format snapshot of a room's players for movement rendering.
 // Only what canvas.js needs — internal fields like `input` stay
 // server-side.
+//
+// PHASE 10.3 ADDITION: `characterId` is included so the client can
+// render each player's actual selected sprite during gameplay,
+// rather than only knowing it during the lobby (where it already
+// existed via buildLobbySnapshot). This reuses charactersStore's
+// existing, unmodified selection data — no new state was added.
 function buildMovementSnapshot(room) {
   return Object.values(room.players).map((p) => ({
     id: p.id,
@@ -68,6 +74,7 @@ function buildMovementSnapshot(room) {
     color: p.color,
     x: p.x,
     y: p.y,
+    characterId: charactersStore.getSelectionForPlayer(room, p.id),
   }));
 }
 
@@ -108,13 +115,34 @@ function buildLobbySnapshot(room) {
 function attachMovementNetworking(io) {
   const movementNamespace = io.of('/2d');
 
+  const CODENAME_MIN_LENGTH = 3;
+  const CODENAME_MAX_LENGTH = 16;
+
+  // Server is the sole authority on what counts as a valid codename —
+  // the client's own check in lobby.js is only a convenience, never
+  // trusted here. Returns a trimmed, validated string or null.
+  function validateCodename(rawCodename) {
+    if (typeof rawCodename !== 'string') return null;
+    const trimmed = rawCodename.trim();
+    if (trimmed.length < CODENAME_MIN_LENGTH || trimmed.length > CODENAME_MAX_LENGTH) return null;
+    return trimmed;
+  }
+
   // Adds a socket to a party room: creates its movement player state,
   // joins the underlying Socket.io room (for broadcast scoping), and
   // announces the updated lobby + movement snapshots to everyone
   // already in that room.
-  function addSocketToRoom(socket, room) {
+  //
+  // PHASE 10.3: accepts an optional, already-validated codename to
+  // use as the player's display name instead of the previous
+  // auto-generated "Player N". Falls back to that auto-generated name
+  // only if no valid codename was supplied — callers (createRoom /
+  // joinRoom below) are expected to have already validated it via
+  // validateCodename, so this is a defensive fallback, not the
+  // primary validation path.
+  function addSocketToRoom(socket, room, codename) {
     room.playerCounter += 1;
-    const name = `Player ${room.playerCounter}`;
+    const name = codename || `Player ${room.playerCounter}`;
     const color = colorForIndex(room.playerCounter);
     room.players[socket.id] = createPlayerState(socket.id, name, color);
 
@@ -290,10 +318,14 @@ function attachMovementNetworking(io) {
     });
 
     // --- CREATE ROOM ---
-    socket.on('createRoom', (_payload, callback) => {
+    socket.on('createRoom', ({ codename } = {}, callback) => {
       try {
+        const validatedCodename = validateCodename(codename);
+        if (!validatedCodename) {
+          return callback?.({ error: 'Codename must be 3–16 characters.' });
+        }
         const room = roomsStore.createRoom(socket.id);
-        addSocketToRoom(socket, room);
+        addSocketToRoom(socket, room, validatedCodename);
         callback?.({ success: true, code: room.code });
       } catch (err) {
         console.error('createRoom error:', err);
@@ -302,8 +334,12 @@ function attachMovementNetworking(io) {
     });
 
     // --- JOIN ROOM ---
-    socket.on('joinRoom', ({ code } = {}, callback) => {
+    socket.on('joinRoom', ({ code, codename } = {}, callback) => {
       try {
+        const validatedCodename = validateCodename(codename);
+        if (!validatedCodename) {
+          return callback?.({ error: 'Codename must be 3–16 characters.' });
+        }
         const roomCode = (code || '').toUpperCase().trim();
         const room = roomsStore.getRoom(roomCode);
         if (!room) {
@@ -312,7 +348,7 @@ function attachMovementNetworking(io) {
         if (gameStartStore.isLocked(room)) {
           return callback?.({ error: 'This room has already started and can no longer be joined.' });
         }
-        addSocketToRoom(socket, room);
+        addSocketToRoom(socket, room, validatedCodename);
         callback?.({ success: true, code: room.code });
       } catch (err) {
         console.error('joinRoom error:', err);

@@ -60,6 +60,15 @@ if (promptEl && typeof MutationObserver !== 'undefined') {
 let suppressed = false; // true while a conversation panel or the conference room is open
 let suppressedSince = null; // timestamp suppression started, or null when not suppressed
 
+// PHASE 10.4: the prompt must only ever be active during actual
+// gameplay, never in the lobby/character-selection screens — even
+// though movement itself is already live at that point (players can
+// walk around before the match starts). Starts false; only 'gameStart'
+// turns it on, and 'returnToLobby' turns it back off, mirroring the
+// exact same lifecycle already used for #call-vote-btn and the
+// Investigation Log container.
+let matchActive = false;
+
 // Safety ceiling for the self-healing check in refreshPrompt() below.
 // Real conversations/votes are always seconds long — this is
 // deliberately far longer than any legitimate case, purely a backstop
@@ -116,15 +125,10 @@ function requestConversationWith(targetId) {
 }
 
 function refreshPrompt() {
-  // --- TEMPORARY DIAGNOSTIC LOGGING (remove after debugging) ---
-  // CHECK 1: is this function actually still being called every 150ms?
-  // CHECK 3: what is `suppressed` on this exact tick?
-  console.warn('[proximity debug] refreshPrompt tick', {
-    timestamp: Date.now(),
-    suppressed,
-    suppressedSince,
-  });
-  // --- END TEMPORARY DIAGNOSTIC LOGGING ---
+  if (!matchActive) {
+    hidePrompt();
+    return;
+  }
 
   // Safety check: if we've been suppressed for far longer than any
   // real conversation or vote could plausibly take, something failed
@@ -170,7 +174,7 @@ function refreshPrompt() {
 setInterval(refreshPrompt, 150);
 
 window.addEventListener('keydown', (e) => {
-  if (e.code !== 'KeyE' || suppressed) return;
+  if (e.code !== 'KeyE' || suppressed || !matchActive) return;
 
   const nearby = getNearbyPlayers();
   if (nearby.length === 0) return;
@@ -226,4 +230,10 @@ socket.on('conferenceResult', () => {
 
 socket.on('returnToLobby', () => {
   setSuppressed(false);
+  matchActive = false;
+  hidePrompt();
+});
+
+socket.on('gameStart', () => {
+  matchActive = true;
 });
