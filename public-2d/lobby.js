@@ -2,20 +2,24 @@
 // PUBLIC-2D/LOBBY.JS — Room create/join UI and state
 // ============================================================
 // Handles the pre-game lobby: creating a party, joining one by code,
-// and displaying room code / host / player list once inside. Talks
+// and displaying room code / host / player cards once inside. Talks
 // to the server via the shared socket (socket.js) and owns its own
-// small slice of DOM (the entry screen and room-info panel) directly,
-// since Phase 4 doesn't warrant pulling in a UI framework for two
-// small panels.
+// slice of DOM directly.
 //
 // Deliberately does NOT touch movement or rendering — network.js and
 // canvas.js are unaffected by anything in this file, aside from both
 // now only receiving meaningful 'state' events once a room exists
 // server-side (see server/movement-network.js).
+//
+// PHASE 10.4: player list rendered as premium cards (animated idle
+// sprite, codename, ready badge, host badge); added the Ready/Not
+// Ready toggle; Start Match now also gated on `lobby.allReady`
+// (server-computed, same pattern as `allSelected`) alongside
+// character selection.
 // ============================================================
 
 import socket from './socket.js';
-import { drawPreviewFrame, getSheet } from './sprites.js';
+import { drawSpriteFrame, getSheet, ROW } from './sprites.js';
 
 let selfId = null;
 
@@ -35,10 +39,29 @@ const roomCodeDisplayEl = document.getElementById('room-code-display');
 const hostIndicatorEl = document.getElementById('host-indicator');
 const playerCountEl = document.getElementById('player-count');
 const playerListEl = document.getElementById('player-list');
+const readyBtn = document.getElementById('ready-btn');
 const startBtn = document.getElementById('start-game-btn');
 const startMessageEl = document.getElementById('start-message');
+const createSpinner = document.getElementById('create-room-spinner');
+const joinSpinner = document.getElementById('join-room-spinner');
 
-const CODENAME_PREVIEW_SIZE = 32; // matches sprites.js's FRAME_SIZE — native resolution, scaled via CSS
+const CARD_PREVIEW_SIZE = 48; // native sprite resolution, scaled via CSS for crisp pixels
+
+// Animated idle preview: every card canvas currently on screen cycles
+// through the 4 idle-down frames together on one shared interval,
+// rather than each card running its own timer.
+const activeCardCanvases = []; // { ctx, characterId }
+let idleFrameIndex = 0;
+setInterval(() => {
+  idleFrameIndex = (idleFrameIndex + 1) % 4;
+  for (const card of activeCardCanvases) {
+    const img = getSheet(card.characterId);
+    if (img.complete && img.naturalWidth > 0) {
+      card.ctx.clearRect(0, 0, CARD_PREVIEW_SIZE, CARD_PREVIEW_SIZE);
+    }
+    drawSpriteFrame(card.ctx, card.characterId, ROW.idleDown, idleFrameIndex, 0, 0, CARD_PREVIEW_SIZE);
+  }
+}, 220);
 
 // Mirrors the server's own 3–16 character rule (server/movement-network.js)
 // purely so the player gets immediate feedback — the server remains
@@ -76,61 +99,80 @@ function renderLobby(lobby) {
   playerCountEl.textContent = `${lobby.count} player${lobby.count === 1 ? '' : 's'} connected`;
 
   const isSelfHost = lobby.hostId === selfId;
-  hostIndicatorEl.textContent = isSelfHost ? "You are the host" : 'Waiting for host';
+  hostIndicatorEl.textContent = isSelfHost ? 'You are the host' : 'Waiting for host';
 
   playerListEl.innerHTML = '';
-  for (const player of lobby.players) {
-    const li = document.createElement('li');
-    li.className = 'lobby-player-entry';
+  activeCardCanvases.length = 0;
 
-    // PHASE 10.3: sprite preview beside the codename, matching the
-    // same idle-down frame shown on the character-selection grid —
-    // or an empty placeholder box if this player hasn't picked a
-    // character yet. Character *ownership* is still decided entirely
-    // server-side; this is read-only display of what was reported.
+  for (const player of lobby.players) {
+    const card = document.createElement('li');
+    card.className = 'player-card';
+    if (player.id === selfId) card.classList.add('player-card-self');
+
+    const previewWrap = document.createElement('div');
+    previewWrap.className = 'player-card-preview';
     if (player.characterId) {
-      const previewCanvas = document.createElement('canvas');
-      previewCanvas.width = CODENAME_PREVIEW_SIZE;
-      previewCanvas.height = CODENAME_PREVIEW_SIZE;
-      previewCanvas.className = 'lobby-player-preview';
-      const previewCtx = previewCanvas.getContext('2d');
-      drawPreviewFrame(previewCtx, player.characterId, 0, 0, CODENAME_PREVIEW_SIZE);
+      const canvas = document.createElement('canvas');
+      canvas.width = CARD_PREVIEW_SIZE;
+      canvas.height = CARD_PREVIEW_SIZE;
+      canvas.className = 'player-card-sprite';
+      const ctx = canvas.getContext('2d');
+      drawSpriteFrame(ctx, player.characterId, ROW.idleDown, 0, 0, 0, CARD_PREVIEW_SIZE);
       getSheet(player.characterId).addEventListener(
         'load',
-        () => drawPreviewFrame(previewCtx, player.characterId, 0, 0, CODENAME_PREVIEW_SIZE),
+        () => drawSpriteFrame(ctx, player.characterId, ROW.idleDown, 0, 0, 0, CARD_PREVIEW_SIZE),
         { once: true }
       );
-      li.appendChild(previewCanvas);
+      activeCardCanvases.push({ ctx, characterId: player.characterId });
+      previewWrap.appendChild(canvas);
     } else {
-      const placeholder = document.createElement('span');
-      placeholder.className = 'lobby-player-preview lobby-player-preview-empty';
-      li.appendChild(placeholder);
+      previewWrap.classList.add('player-card-preview-empty');
+      previewWrap.textContent = '?';
     }
+    card.appendChild(previewWrap);
 
+    const infoWrap = document.createElement('div');
+    infoWrap.className = 'player-card-info';
+
+    const nameRow = document.createElement('div');
+    nameRow.className = 'player-card-name-row';
     const nameSpan = document.createElement('span');
+    nameSpan.className = 'player-card-name';
     nameSpan.textContent = player.name;
+    nameRow.appendChild(nameSpan);
     if (player.id === lobby.hostId) {
-      nameSpan.textContent += ' (host)';
-      nameSpan.classList.add('host-entry');
+      const hostBadge = document.createElement('span');
+      hostBadge.className = 'host-badge';
+      hostBadge.textContent = 'HOST';
+      nameRow.appendChild(hostBadge);
     }
-    if (player.id === selfId) {
-      nameSpan.textContent += ' (you)';
-    }
-    li.appendChild(nameSpan);
+    infoWrap.appendChild(nameRow);
 
-    playerListEl.appendChild(li);
+    const readyBadge = document.createElement('span');
+    readyBadge.className = player.ready ? 'ready-badge ready-badge-ready' : 'ready-badge ready-badge-not-ready';
+    readyBadge.innerHTML = player.ready ? '<span class="ready-check">&check;</span> Ready' : 'Not Ready';
+    infoWrap.appendChild(readyBadge);
+
+    card.appendChild(infoWrap);
+    playerListEl.appendChild(card);
   }
 
+  renderReadyControl(lobby);
   renderStartControl(lobby, isSelfHost);
 }
 
-// Start Game is visible only to the host, and its enabled/disabled
-// state is driven entirely by `lobby.allSelected`, which the server
-// computed (see server/movement-network.js -> characters.js). This
-// function never decides readiness itself — it only reflects what
-// the server already validated, and clicking it (once truly wired up
-// in a later phase) would still need the server to accept or reject
-// the actual start, the same way character selection already works.
+function renderReadyControl(lobby) {
+  const self = lobby.players.find((p) => p.id === selfId);
+  const isReady = !!self?.ready;
+  readyBtn.textContent = isReady ? 'Not Ready' : 'Ready';
+  readyBtn.classList.toggle('ready-btn-active', isReady);
+}
+
+// Start Match is visible only to the host, and its enabled/disabled
+// state is driven entirely by `lobby.allSelected` and `lobby.allReady`,
+// both server-computed (see server/movement-network.js). This
+// function never decides readiness itself — it only reflects what the
+// server already validated.
 function renderStartControl(lobby, isSelfHost) {
   if (!isSelfHost) {
     startBtn.classList.add('hidden');
@@ -140,10 +182,18 @@ function renderStartControl(lobby, isSelfHost) {
 
   startBtn.classList.remove('hidden');
   startMessageEl.classList.remove('hidden');
-  startBtn.disabled = !lobby.allSelected;
-  startMessageEl.textContent = lobby.allSelected
-    ? ''
-    : 'Start Game is disabled until every connected player has selected a character.';
+
+  const canStart = lobby.allSelected && lobby.allReady;
+  startBtn.disabled = !canStart;
+  startBtn.classList.toggle('start-btn-glow', canStart);
+
+  if (canStart) {
+    startMessageEl.textContent = '';
+  } else if (!lobby.allSelected) {
+    startMessageEl.textContent = 'Start Match is disabled until every connected player has selected a character.';
+  } else {
+    startMessageEl.textContent = 'Start Match is disabled until every connected player is Ready.';
+  }
 }
 
 socket.on('self', ({ id }) => {
@@ -161,6 +211,12 @@ socket.on('lobby', (lobby) => {
   renderLobby(lobby);
 });
 
+readyBtn.addEventListener('click', () => {
+  socket.emit('toggleReady', {}, (res) => {
+    if (res?.error) showError(res.error);
+  });
+});
+
 createBtn.addEventListener('click', () => {
   clearError();
   const codename = getValidatedCodename();
@@ -168,7 +224,11 @@ createBtn.addEventListener('click', () => {
     showError('Enter a codename (3–16 characters).');
     return;
   }
+  createSpinner.classList.remove('hidden');
+  createBtn.disabled = true;
   socket.emit('createRoom', { codename }, (res) => {
+    createSpinner.classList.add('hidden');
+    createBtn.disabled = false;
     if (res?.error) showError(res.error);
   });
 });
@@ -185,7 +245,11 @@ joinBtn.addEventListener('click', () => {
     showError('Enter a codename (3–16 characters).');
     return;
   }
+  joinSpinner.classList.remove('hidden');
+  joinBtn.disabled = true;
   socket.emit('joinRoom', { code, codename }, (res) => {
+    joinSpinner.classList.add('hidden');
+    joinBtn.disabled = false;
     if (res?.error) showError(res.error);
   });
 });

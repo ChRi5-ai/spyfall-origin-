@@ -41,6 +41,7 @@ const spyGuessStore = require('./spy-guess');
 const resultsLogicStore = require('./results-logic');
 const gameResetStore = require('./game-reset');
 const locationsStore = require('./locations');
+const readyStore = require('./ready');
 
 const TICK_RATE_HZ = 30;
 const TICK_MS = 1000 / TICK_RATE_HZ;
@@ -95,6 +96,10 @@ function buildMovementSnapshot(room) {
 // `started` (from game-start.js) are wired in the same way — each
 // module owns its own rules, this function just assembles their
 // current values into one snapshot for the client to render.
+// PHASE 10.4 ADDITION: `ready` per player (from ready.js) and
+// `allReady` (composed the same way `allSelected` already is) — wired
+// in so the client can render Ready/Not Ready indicators and gate the
+// Start Game control on readiness, alongside character selection.
 function buildLobbySnapshot(room) {
   return {
     code: room.code,
@@ -103,10 +108,12 @@ function buildLobbySnapshot(room) {
       id: p.id,
       name: p.name,
       characterId: charactersStore.getSelectionForPlayer(room, p.id),
+      ready: readyStore.isReady(room, p.id),
     })),
     count: Object.keys(room.players).length,
     characters: charactersStore.buildCharacterAvailability(room),
     allSelected: charactersStore.allPlayersSelected(room),
+    allReady: readyStore.allPlayersReady(room),
     settings: settingsStore.getSettings(room),
     started: gameStartStore.isLocked(room),
   };
@@ -140,7 +147,7 @@ function attachMovementNetworking(io) {
   // joinRoom below) are expected to have already validated it via
   // validateCodename, so this is a defensive fallback, not the
   // primary validation path.
-  function addSocketToRoom(socket, room, codename) {
+  function addSocketToRoom(socket, room, codename, isJoin) {
     room.playerCounter += 1;
     const name = codename || `Player ${room.playerCounter}`;
     const color = colorForIndex(room.playerCounter);
@@ -150,6 +157,12 @@ function attachMovementNetworking(io) {
 
     movementNamespace.to(room.code).emit('lobby', buildLobbySnapshot(room));
     movementNamespace.to(room.code).emit('state', buildMovementSnapshot(room));
+
+    // PHASE 10.4: only for an actual join into an existing party —
+    // creating a room has no one else present yet to notify.
+    if (isJoin) {
+      movementNamespace.to(room.code).emit('notification', { type: 'join', name });
+    }
   }
 
   // If every connected player has responded to the pending vote
@@ -348,7 +361,7 @@ function attachMovementNetworking(io) {
         if (gameStartStore.isLocked(room)) {
           return callback?.({ error: 'This room has already started and can no longer be joined.' });
         }
-        addSocketToRoom(socket, room, validatedCodename);
+        addSocketToRoom(socket, room, validatedCodename, true);
         callback?.({ success: true, code: room.code });
       } catch (err) {
         console.error('joinRoom error:', err);
@@ -378,8 +391,35 @@ function attachMovementNetworking(io) {
         return callback?.({ error: result.error, lobby: buildLobbySnapshot(room) });
       }
 
+      // PHASE 10.4: changing character automatically un-readies the
+      // player — they need to re-confirm Ready with their new pick.
+      readyStore.clearReady(room, socket.id);
+
       callback?.({ success: true });
       movementNamespace.to(room.code).emit('lobby', buildLobbySnapshot(room));
+    });
+
+    // --- TOGGLE READY ---
+    // Simple boolean flip, gated only by "are you actually in this
+    // room" and "has the game already started" — no other rules.
+    // allPlayersReady (used by game-start.js's attemptStartGame) is
+    // recomputed fresh from room.readyState every time it's needed,
+    // so there's nothing else to keep in sync here.
+    socket.on('toggleReady', (_payload, callback) => {
+      const room = roomsStore.findRoomBySocket(socket.id);
+      if (!room) return callback?.({ error: 'You are not in a room.' });
+      if (gameStartStore.isLocked(room)) {
+        return callback?.({ error: 'Ready state is locked — the game has started.' });
+      }
+
+      const nowReady = readyStore.toggleReady(room, socket.id);
+      callback?.({ success: true, ready: nowReady });
+
+      movementNamespace.to(room.code).emit('lobby', buildLobbySnapshot(room));
+      movementNamespace.to(room.code).emit('notification', {
+        type: nowReady ? 'ready' : 'notReady',
+        name: room.players[socket.id]?.name || 'A player',
+      });
     });
 
     // --- UPDATE HOST SETTINGS ---
@@ -436,6 +476,10 @@ function attachMovementNetworking(io) {
       }
 
       callback?.({ success: true });
+      movementNamespace.to(room.code).emit('notification', {
+        type: 'matchStart',
+        name: room.players[socket.id]?.name || 'The host',
+      });
       movementNamespace.to(room.code).emit('gameStart', {
         map: result.map,
         timerMinutes: result.timerMinutes,
@@ -689,6 +733,7 @@ function attachMovementNetworking(io) {
       if (!room) return; // was never in a room (e.g. left at the entry screen)
 
       const code = room.code;
+      const departingName = room.players[socket.id]?.name || 'A player';
 
       // If this player was mid-conversation, free their partner
       // immediately rather than leaving them stuck unable to start a
@@ -708,6 +753,7 @@ function attachMovementNetworking(io) {
 
       const stillExists = roomsStore.removePlayerFromRoom(code, socket.id);
       charactersStore.releaseSelection(room, socket.id);
+      readyStore.removePlayer(room, socket.id);
 
       if (!stillExists) {
         // Room was just deleted for being empty — if a discussion
@@ -724,6 +770,14 @@ function attachMovementNetworking(io) {
         // lobby list and the world both update without a visible delay.
         movementNamespace.to(code).emit('lobby', buildLobbySnapshot(stillExists));
         movementNamespace.to(code).emit('state', buildMovementSnapshot(stillExists));
+        // PHASE 10.4: only notify if this happened during the lobby —
+        // once a match is running, a mid-game disconnect is already
+        // handled by the existing spy-disconnect / forfeited-guess
+        // safety logic further below, which has its own outcome to
+        // communicate instead of a generic "left" toast.
+        if (!stillExists.started) {
+          movementNamespace.to(code).emit('notification', { type: 'leave', name: departingName });
+        }
 
         // If everyone else had already responded to a pending vote
         // request, or already cast their vote in the conference room,

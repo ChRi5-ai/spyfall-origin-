@@ -132,52 +132,79 @@
       party. One shared field, since both actions need it.
     -->
     <input id="codename-input" maxlength="16" placeholder="CODENAME (3-16 CHARS)" autocomplete="off" />
-    <button id="create-room-btn">Create Room</button>
+    <button id="create-room-btn">
+      Create Room
+      <span id="create-room-spinner" class="btn-spinner hidden"></span>
+    </button>
     <div class="divider">or</div>
     <input id="join-code-input" maxlength="6" placeholder="ROOM CODE" autocomplete="off" />
-    <button id="join-room-btn">Join Room</button>
+    <button id="join-room-btn">
+      Join Room
+      <span id="join-room-spinner" class="btn-spinner hidden"></span>
+    </button>
     <p id="lobby-error" class="error"></p>
   </div>
 
   <!--
-    Room info overlay, shown once inside a party. No game settings or
-    ready button yet — just who's here and who's host.
+    Room info overlay, shown once inside a party — now rendered as
+    premium player cards (see lobby.js), with a per-player Ready
+    toggle and a host-only Start Match control.
   -->
-  <div id="room-info" class="panel hidden">
-    <h2>Room <span id="room-code-display"></span></h2>
-    <p id="host-indicator"></p>
-    <p id="player-count"></p>
-    <ul id="player-list"></ul>
+  <!-- PHASE 10.4: toast notifications for lobby events. -->
+  <div id="notification-container" class="notification-container"></div>
+
+  <!--
+    PHASE 10.4 LAYOUT: the three lobby panels below are laid out
+    together as one coordinated responsive group (see .lobby-layout
+    in style.css) instead of each being independently positioned in
+    a viewport corner — this is what prevents them from overlapping
+    as their content grows, and lets them wrap onto their own row on
+    narrow screens instead. No panel's own id, contents, or behavior
+    changed — only their shared layout container.
+  -->
+  <div class="lobby-layout">
     <!--
-      Host-only. Visibility and enabled state are both driven entirely
-      by data the server sent in the 'lobby' snapshot (see lobby.js) —
-      never decided client-side. Not wired to an actual game start yet.
+      Room info — shown once inside a party, rendered as premium
+      player cards (see lobby.js), with a per-player Ready toggle and
+      a host-only Start Match control.
     -->
-    <button id="start-game-btn" class="hidden" disabled>Start Game</button>
-    <p id="start-message" class="hidden error"></p>
-  </div>
+    <div id="room-info" class="panel hidden">
+      <h2>Room <span id="room-code-display"></span></h2>
+      <p id="host-indicator"></p>
+      <p id="player-count"></p>
+      <ul id="player-list" class="player-card-list"></ul>
+      <button id="ready-btn" type="button" class="ready-btn">Ready</button>
+      <!--
+        Host-only. Visibility and enabled state are both driven entirely
+        by data the server sent in the 'lobby' snapshot (see lobby.js) —
+        never decided client-side.
+      -->
+      <button id="start-game-btn" class="hidden" disabled>Start Match</button>
+      <p id="start-message" class="hidden error"></p>
+    </div>
 
-  <!--
-    Character selection grid — 10 fixed slots, always shown once in a
-    room. No Start Game control here; that's a separate, later step.
-  -->
-  <div id="character-panel" class="panel hidden">
-    <h2>Choose a Character</h2>
-    <div id="character-grid"></div>
-  </div>
+    <!--
+      Character selection grid — 10 fixed slots, always shown once in a
+      room. No Start Game control here; that's a separate, later step.
+    -->
+    <div id="character-panel" class="panel hidden">
+      <h2>Choose a Character</h2>
+      <div id="character-grid"></div>
+    </div>
 
-  <!--
-    PHASE 6: host-configurable match settings. Read-only for
-    non-host players — buttons render disabled for them (see
-    settings.js), the server enforces the same restriction regardless.
-  -->
-  <div id="settings-panel" class="panel hidden">
-    <h2>Match Settings</h2>
-    <p class="settings-label">Map</p>
-    <div id="map-options" class="settings-options"></div>
-    <p class="settings-label">Discussion Timer</p>
-    <div id="timer-options" class="settings-options"></div>
-    <p id="settings-error" class="error"></p>
+    <!--
+      Host-configurable match settings. Read-only for non-host players
+      — buttons render disabled for them (see settings.js), the server
+      enforces the same restriction regardless.
+    -->
+    <div id="settings-panel" class="panel hidden">
+      <h2>Match Settings</h2>
+      <p class="settings-label">Map</p>
+      <div id="map-options" class="settings-options"></div>
+      <p class="settings-label">Discussion Timer</p>
+      <div id="timer-options" class="settings-options"></div>
+      <p id="settings-error" class="error"></p>
+    </div>
   </div>
 
   <!--
@@ -320,6 +347,7 @@
     automatically.
   -->
   <script type="module" src="lobby.js"></script>
+  <script type="module" src="notifications.js"></script>
   <script type="module" src="characters.js"></script>
   <script type="module" src="settings.js"></script>
   <script type="module" src="game-start.js"></script>

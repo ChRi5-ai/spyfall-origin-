@@ -13,7 +13,10 @@
 //
 // Character selections, room membership, host, and settings are all
 // deliberately left untouched — Play Again only resets what a new
-// match needs to start clean, per the Phase 9B spec.
+// match needs to start clean, per the Phase 9B spec. Phase 10.4 adds
+// one more thing to the reset list: ready state, since every player
+// needs to re-confirm Ready for a fresh round even though their
+// character choice carries over.
 // ------------------------------------------------------------
 
 const gameTimerStore = require('./game-timer');
@@ -31,6 +34,7 @@ function attemptPlayAgain(room, socketId) {
   room.conversations = undefined;   // question history, active conversations, re-ask rule
   room.voteRequest = null;          // any pending Call Vote request
   room.conference = null;           // any in-progress conference votes
+  room.readyState = undefined;      // Phase 10.4: everyone must re-ready for the new round
   room.started = false;             // unlocks the room: joining/character changes/settings again allowed
 
   return { success: true };

@@ -15,6 +15,7 @@
 
 const charactersStore = require('./characters');
 const settingsStore = require('./settings');
+const readyStore = require('./ready');
 
 // Attempts to start the game for a room, on behalf of `socketId`.
 // Returns { success: true, map, timerMinutes } on success, or
@@ -29,6 +30,9 @@ function attemptStartGame(room, socketId) {
   }
   if (!charactersStore.allPlayersSelected(room)) {
     return { error: 'Every connected player must select a character first.' };
+  }
+  if (!readyStore.allPlayersReady(room)) {
+    return { error: 'Every connected player must be Ready before the game can start.' };
   }
 
   const settings = settingsStore.getSettings(room);

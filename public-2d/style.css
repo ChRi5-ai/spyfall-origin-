@@ -100,91 +100,125 @@ body {
   font-size: 0.85rem;
 }
 
-/* Room-info overlay sits in the corner rather than centered, so it
-   doesn't block the canvas once a player has joined a room. */
-#room-info {
+/* ============================================================
+   LOBBY LAYOUT — coordinated three-panel grid
+   ============================================================
+   Previously room-info, character-panel, and settings-panel were
+   each independently `position: fixed` in a separate viewport
+   corner, sized only by min-width with no awareness of one another.
+   As their content grew (player cards, a 10-slot character grid,
+   settings controls) they began overlapping. They're now laid out
+   together as flex items of one shared container (.lobby-layout,
+   wrapping all three in index.html), each given a deliberate width
+   share instead of guessing at a min-width, and allowed to wrap onto
+   their own row on narrow screens instead of overlapping.
+   ============================================================ */
+
+.lobby-layout {
   position: fixed;
-  top: 16px;
-  left: 16px;
-  min-width: 200px;
-  text-align: left;
-  padding: 14px 18px;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1080px, 96vw);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  z-index: 50;
 }
 
-#room-info h2 {
-  font-size: 1rem;
-  margin-bottom: 8px;
+.lobby-layout > .panel {
+  margin: 0;
+  animation: panel-fade-in 320ms ease both;
+}
+
+#room-info {
+  flex: 1 1 260px;
+  max-width: 300px;
+}
+
+#character-panel {
+  /* Character selection gets the most dedicated space — it's the
+     panel with the most content (a 10-slot grid). */
+  flex: 1.4 1 320px;
+  max-width: 400px;
+}
+
+#settings-panel {
+  /* Narrower, per spec — it holds the least content of the three. */
+  flex: 1 1 220px;
+  max-width: 260px;
+}
+
+#room-info h2,
+#character-panel h2,
+#settings-panel h2 {
+  font-size: 0.95rem;
+  margin-bottom: 14px;
 }
 
 #player-list {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   padding: 0;
   font-size: 0.85rem;
 }
 
 #player-list li {
-  padding: 2px 0;
+  padding: 3px 0;
 }
 
 .host-entry {
-  color: #f4a261;
-}
-
-/* Character selection panel sits in the opposite corner from
-   room-info, so both are visible at once without overlapping. */
-#character-panel {
-  position: fixed;
-  top: 16px;
-  right: 16px;
-  min-width: 220px;
-  text-align: left;
-  padding: 14px 18px;
-}
-
-#character-panel h2 {
-  font-size: 1rem;
-  margin-bottom: 10px;
+  color: var(--spy-cyan);
 }
 
 #character-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  gap: 10px;
 }
 
 .character-slot {
   aspect-ratio: 1 / 1;
   font-family: inherit;
   font-size: 1rem;
-  border-radius: 4px;
-  border: 2px solid #588157;
-  background: #3a5a40;
-  color: #f1faee;
+  border-radius: 6px;
+  border: none;
+  background: rgba(56, 189, 248, 0.06);
+  color: var(--spy-text);
   cursor: pointer;
+  transition: background 160ms ease, box-shadow 160ms ease, transform 120ms ease;
 }
 
 .character-slot.available:hover {
-  background: #6ea36c;
+  background: rgba(56, 189, 248, 0.16);
+  transform: scale(1.05);
 }
 
 .character-slot.taken {
-  background: #223229;
-  border-color: #3a4a3f;
-  color: #6a7d70;
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(230, 240, 246, 0.25);
   cursor: not-allowed;
 }
 
 .character-slot.selected-self {
-  background: #e63946;
-  border-color: #f1faee;
+  background: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 0 0 2px var(--spy-cyan), 0 0 16px rgba(56, 189, 248, 0.5);
   cursor: pointer;
-  color: #f1faee;
+  color: var(--spy-text);
+  animation: character-select-pop 260ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* PHASE 10.3: sprite preview canvases — rendered at native 32x32
-   resolution in JS, scaled up here with pixelated interpolation so
-   the pixel-art sheets stay crisp rather than blurring. */
+@keyframes character-select-pop {
+  0% { transform: scale(0.9); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* Sprite preview canvases — rendered at native resolution in JS,
+   scaled up here with pixelated interpolation so the pixel-art
+   sheets stay crisp rather than blurring. */
 .character-slot-preview {
   width: 100%;
   height: 100%;
@@ -206,64 +240,72 @@ body {
   flex-shrink: 0;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  border: 1px solid #588157;
-  border-radius: 3px;
-  background: #1b2a23;
+  border-radius: 4px;
+  background: var(--spy-navy-deep);
 }
 
 .lobby-player-preview-empty {
   display: inline-block;
 }
 
-/* Settings panel sits centered along the bottom, out of the way of
-   both corner panels. */
-#settings-panel {
-  position: fixed;
-  bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 320px;
-  text-align: left;
-  padding: 14px 18px;
+.settings-label {
+  margin: 14px 0 6px;
+  font-size: 0.78rem;
+  color: var(--spy-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
-.settings-label {
-  margin: 10px 0 4px;
-  font-size: 0.85rem;
-  opacity: 0.8;
+.settings-label:first-of-type {
+  margin-top: 0;
 }
 
 .settings-options {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .settings-option {
   font-family: inherit;
-  font-size: 0.85rem;
-  padding: 6px 12px;
-  border-radius: 4px;
-  border: 2px solid #588157;
-  background: #3a5a40;
-  color: #f1faee;
+  font-size: 0.78rem;
+  padding: 7px 12px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(56, 189, 248, 0.06);
+  color: var(--spy-text);
   cursor: pointer;
+  transition: background 160ms ease;
 }
 
 .settings-option:not(:disabled):hover {
-  background: #6ea36c;
+  background: rgba(56, 189, 248, 0.16);
 }
 
 .settings-option:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.4;
 }
 
 .settings-option.selected-option {
-  background: #f4a261;
-  border-color: #f1faee;
-  color: #1b2a23;
-  font-weight: bold;
+  background: rgba(56, 189, 248, 0.22);
+  box-shadow: 0 0 0 2px var(--spy-cyan);
+  color: var(--spy-text);
+  font-weight: 600;
+}
+
+@media (max-width: 980px) {
+  .lobby-layout {
+    position: static;
+    transform: none;
+    margin: 20px auto;
+    flex-direction: column;
+    align-items: center;
+  }
+  #room-info, #character-panel, #settings-panel {
+    max-width: min(420px, 92vw);
+    width: 100%;
+  }
 }
 
 /* Gameplay placeholder panel — shown once the host starts the game.
@@ -950,4 +992,366 @@ body {
 
 .back-to-menu-btn:active {
   transform: scale(0.97);
+}
+
+/* ============================================================
+   PHASE 10.4 — LOBBY POLISH: SPY COMMAND-CENTER THEME (refined)
+   ============================================================
+   Purely additive/CSS-only: no JS or HTML structure was touched.
+   This replaces the first pass at this theme with a calmer version —
+   fewer borders, softer shadows, no constant global animation,
+   tighter and more consistent spacing, clearer visual hierarchy.
+   ============================================================ */
+
+:root {
+  --spy-navy: #0b1622;
+  --spy-navy-deep: #060d15;
+  --spy-cyan: #38bdf8;
+  --spy-cyan-soft: rgba(56, 189, 248, 0.16);
+  --spy-text: #e6f0f6;
+  --spy-text-muted: rgba(230, 240, 246, 0.6);
+}
+
+@keyframes panel-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Re-skins the existing .panel surfaces with one calm, consistent
+   look — a soft dark glass card, a single subtle border, and a
+   restrained shadow. No animated glow loop: motion is reserved for
+   moments that mean something (hover, ready state, start-ready
+   pulse), not a constant ambient effect on every screen. */
+.panel {
+  background: linear-gradient(165deg, rgba(14, 24, 34, 0.82), rgba(8, 15, 22, 0.9));
+  border: 1px solid rgba(56, 189, 248, 0.14);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 6px 28px rgba(0, 0, 0, 0.4);
+  color: var(--spy-text);
+  padding: 28px 30px;
+  animation: panel-fade-in 320ms ease both;
+}
+
+.panel h1, .panel h2 {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--spy-cyan);
+  margin: 0 0 20px;
+}
+
+.panel h1 {
+  font-size: 1.4rem;
+  text-align: center;
+}
+
+.panel h2 {
+  font-size: 1.05rem;
+}
+
+.panel button {
+  font-family: 'Courier New', monospace;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  color: var(--spy-text);
+  border-radius: 8px;
+  padding: 11px 18px;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  transition: background 160ms ease, border-color 160ms ease, transform 120ms ease;
+}
+
+.panel button:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.45);
+}
+
+.panel button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.panel button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.panel input {
+  background: rgba(4, 9, 14, 0.55);
+  border: 1px solid rgba(56, 189, 248, 0.16);
+  color: var(--spy-text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  transition: border-color 160ms ease;
+}
+
+.panel input:focus {
+  outline: none;
+  border-color: var(--spy-cyan);
+}
+
+#lobby-entry {
+  width: min(340px, 90vw);
+}
+
+#lobby-entry input,
+#lobby-entry button {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.divider {
+  text-align: center;
+  color: var(--spy-text-muted);
+  font-size: 0.75rem;
+  margin: 4px 0 14px;
+}
+
+/* --- Button loading spinner --- */
+.btn-spinner {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  margin-left: 8px;
+  border: 2px solid rgba(230, 240, 246, 0.3);
+  border-top-color: var(--spy-cyan);
+  border-radius: 50%;
+  vertical-align: middle;
+  animation: spinner-spin 700ms linear infinite;
+}
+
+@keyframes spinner-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Room info supplementary text --- */
+#host-indicator {
+  color: var(--spy-text-muted);
+  font-size: 0.82rem;
+  margin: 0 0 2px;
+}
+
+#player-count {
+  color: var(--spy-text-muted);
+  font-size: 0.78rem;
+  margin: 0 0 16px;
+}
+
+/* --- Player cards --- */
+.player-card-list {
+  list-style: none;
+  margin: 0 0 18px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(56, 189, 248, 0.04);
+  transition: background 160ms ease;
+}
+
+.player-card:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.player-card-self {
+  background: rgba(56, 189, 248, 0.09);
+}
+
+.player-card-preview {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--spy-navy-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.player-card-preview-empty {
+  color: rgba(230, 240, 246, 0.3);
+  font-size: 1.1rem;
+}
+
+.player-card-sprite {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.player-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.player-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.player-card-name {
+  font-size: 0.88rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.host-badge {
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(56, 189, 248, 0.16);
+  color: var(--spy-cyan);
+}
+
+.ready-badge {
+  font-size: 0.7rem;
+  color: var(--spy-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+}
+
+.ready-badge-ready {
+  color: #5eead4;
+}
+
+.ready-badge-not-ready {
+  color: var(--spy-text-muted);
+}
+
+.ready-check {
+  display: inline-block;
+  animation: ready-check-pop 280ms ease;
+}
+
+@keyframes ready-check-pop {
+  from { transform: scale(0); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* --- Ready button --- */
+.ready-btn {
+  display: block;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 11px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.88rem;
+  font-weight: 500;
+  border-radius: 8px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--spy-text);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 120ms ease;
+}
+
+.ready-btn:hover {
+  background: rgba(56, 189, 248, 0.18);
+}
+
+.ready-btn:active {
+  transform: scale(0.98);
+}
+
+.ready-btn-active {
+  background: rgba(94, 234, 212, 0.12);
+  border-color: rgba(94, 234, 212, 0.4);
+  color: #5eead4;
+}
+
+/* --- Start Match: understated pulse only once truly ready --- */
+@keyframes start-btn-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(56, 189, 248, 0); }
+  50% { box-shadow: 0 0 14px rgba(56, 189, 248, 0.45); }
+}
+
+.start-btn-glow {
+  animation: start-btn-pulse 2.2s ease-in-out infinite;
+  border-color: var(--spy-cyan) !important;
+  background: rgba(56, 189, 248, 0.18) !important;
+}
+
+#start-message {
+  font-size: 0.76rem;
+  margin-top: 8px;
+}
+
+/* --- Notifications --- */
+.notification-container {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  align-items: center;
+}
+
+.notification-toast {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(8, 15, 22, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  backdrop-filter: blur(8px);
+  color: var(--spy-text);
+  font-size: 0.78rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.notification-toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.notification-toast-leaving {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.notification-toast-matchStart {
+  border-color: rgba(94, 234, 212, 0.35);
+  color: #5eead4;
+}
+
+@media (max-width: 600px) {
+  .panel {
+    padding: 22px 20px;
+  }
+  .player-card-list {
+    max-height: 190px;
+  }
+  .notification-container {
+    left: 0;
+    right: 0;
+    transform: none;
+  }
 }
